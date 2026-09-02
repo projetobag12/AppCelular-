@@ -1,43 +1,215 @@
 {
   "entities": {
-    "policies": {
-      "title": "MDM Security Policy",
-      "description": "Active MDM corporate security rules and restrictions",
-      "fields": {
-        "policyName": { "type": "string" },
-        "version": { "type": "string" },
-        "lastUpdated": { "type": "string" },
-        "blockUsbDataTransfer": { "type": "boolean" },
-        "blockBluetooth": { "type": "boolean" },
-        "blockTetheringAndHotspot": { "type": "boolean" },
-        "blockAppInstallations": { "type": "boolean" },
-        "masterAdminBypassPin": { "type": "string" }
-      }
+    "User": {
+      "title": "User",
+      "description": "Usuário administrativo do sistema Multivale Mobile Control",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMINISTRADOR", "GESTOR", "VISUALIZACAO"] },
+        "status": { "type": "string", "enum": ["ATIVO", "INATIVO"] },
+        "createdAt": { "type": "string" },
+        "lastLogin": { "type": "string" }
+      },
+      "required": ["id", "email", "name", "role", "status"]
     },
-    "devices": {
-      "title": "Fleet Corporate Devices",
-      "description": "Smartphones in fleet with real-time GPS telemetry and lock status",
-      "fields": {
-        "assetTag": { "type": "string" },
-        "assignedEmployee": { "type": "string" },
-        "isRemotelyLocked": { "type": "boolean" },
-        "isOnline": { "type": "boolean" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
-        "speedKmH": { "type": "number" },
-        "batteryLevel": { "type": "number" }
-      }
+    "Employee": {
+      "title": "Employee",
+      "description": "Funcionário da Multivale que utiliza celular e chip corporativo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "registrationNumber": { "type": "string", "description": "Matrícula ou identificador interno" },
+        "teamId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "associatedDeviceIds": { "type": "array" },
+        "status": { "type": "string", "enum": ["ATIVO", "INATIVO"] },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "registrationNumber", "teamId", "status"]
     },
-    "incidents": {
-      "title": "Security Incidents",
-      "description": "Recorded security violation attempts and telemetry logs",
-      "fields": {
-        "deviceId": { "type": "string" },
+    "Team": {
+      "title": "Team",
+      "description": "Equipe ou unidade regional da Multivale (ex: Curitiba, Cascavel, Rede Externa)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "description": { "type": "string" },
+        "defaultPolicyId": { "type": "string" },
+        "memberCount": { "type": "number" },
+        "deviceCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "region"]
+    },
+    "Device": {
+      "title": "Device",
+      "description": "Celular ou smartphone corporativo cadastrado no MDM",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "model": { "type": "string" },
+        "androidVersion": { "type": "string" },
+        "imei": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "operator": { "type": "string" },
+        "employeeId": { "type": "string" },
         "employeeName": { "type": "string" },
-        "eventType": { "type": "string" },
-        "details": { "type": "string" },
+        "teamId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "policyId": { "type": "string" },
+        "policyName": { "type": "string" },
+        "status": { "type": "string", "enum": ["ATIVO", "OFFLINE", "BLOQUEADO", "PENDENTE", "ERRO"] },
+        "managementMode": { "type": "string", "enum": ["DEVICE_OWNER", "PROFILE_OWNER", "UNMANAGED"] },
+        "batteryLevel": { "type": "number" },
+        "storageUsedGb": { "type": "number" },
+        "storageTotalGb": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "lastSync": { "type": "string" }
+      },
+      "required": ["id", "name", "manufacturer", "model", "status"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "Aplicativo do catálogo com package name Android",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "packageName": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["AUTORIZADO", "BLOQUEADO"] },
+        "icon": { "type": "string" },
+        "isSystemApp": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "packageName", "category", "status"]
+    },
+    "Policy": {
+      "title": "Policy",
+      "description": "Política corporativa de aplicativos autorizados e restrições",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "securityModel": { "type": "string", "enum": ["ALLOWLIST", "DENYLIST"] },
+        "allowedAppPackageNames": { "type": "array" },
+        "blockedAppPackageNames": { "type": "array" },
+        "associatedDeviceIds": { "type": "array" },
+        "associatedTeamIds": { "type": "array" },
+        "blockPlayStore": { "type": "boolean" },
+        "blockUsbData": { "type": "boolean" },
+        "blockHotspot": { "type": "boolean" },
+        "blockFactoryReset": { "type": "boolean" },
+        "blockDeveloperMode": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["ATIVO", "INATIVO"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "securityModel", "status"]
+    },
+    "PolicyAssignment": {
+      "title": "PolicyAssignment",
+      "description": "Registro de atribuição de política a dispositivo ou equipe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "policyId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["DEVICE", "TEAM"] },
+        "targetId": { "type": "string" },
+        "assignedBy": { "type": "string" },
+        "assignedAt": { "type": "string" },
+        "syncStatus": { "type": "string", "enum": ["APLICADO", "PENDENTE", "ERRO"] }
+      },
+      "required": ["id", "policyId", "targetType", "targetId", "syncStatus"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Alerta gerado pelo sistema de gestão e monitoramento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "type": { "type": "string", "enum": ["NO_SYNC", "POLICY_FAILURE", "UNAUTHORIZED_APP", "PENDING_POLICY", "UNMANAGED_DEVICE", "COMMUNICATION_ERROR"] },
+        "severity": { "type": "string", "enum": ["BAIXA", "MEDIA", "ALTA", "CRITICA"] },
+        "message": { "type": "string" },
+        "resolved": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "resolvedAt": { "type": "string" },
+        "resolvedBy": { "type": "string" }
+      },
+      "required": ["id", "type", "severity", "message", "resolved"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Registro de auditoria e log de ações administrativas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetName": { "type": "string" },
+        "previousValue": { "type": "string" },
+        "newValue": { "type": "string" },
         "timestamp": { "type": "string" }
-      }
+      },
+      "required": ["id", "userId", "userName", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Contas de usuários do painel administrativo"
+    },
+    "/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Cadastro de colaboradores da Multivale"
+    },
+    "/teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Equipes e filiais regionais da empresa"
+    },
+    "/devices/{deviceId}": {
+      "schema": { "$ref": "#/entities/Device" },
+      "description": "Dispositivos e smartphones corporativos"
+    },
+    "/applications/{appId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Catálogo de aplicativos e status de autorização"
+    },
+    "/policies/{policyId}": {
+      "schema": { "$ref": "#/entities/Policy" },
+      "description": "Políticas corporativas de aplicativos e restrições"
+    },
+    "/policyAssignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/PolicyAssignment" },
+      "description": "Vínculos de políticas com dispositivos e equipes"
+    },
+    "/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/Alert" },
+      "description": "Notificações e alertas do sistema"
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Trilha de auditoria administrativa"
     }
   }
 }

@@ -1,205 +1,248 @@
-export interface SecurityPolicy {
-  id: string;
-  policyName: string;
-  version: string;
-  lastUpdated: string;
-  // Hardware & Connectivity Controls
-  blockUsbDataTransfer: boolean;
-  blockDeveloperMode: boolean;
-  blockCamera: boolean;
-  blockMicrophoneExternal: boolean;
-  blockBluetooth: boolean; // False = Bluetooth permitido conforme solicitado
-  blockTetheringAndHotspot: boolean; // Bloqueia rotear internet do celular (Hotspot/Tethering)
-  blockLocationGpsDisabled: boolean;
-  blockFactoryReset: boolean;
-  blockScreenshots: boolean;
-  blockExternalWifiNetworks: boolean; // Only company-approved Wi-Fi SSIDs
-  forceVpnAlwaysOn: boolean;
-  // App & Store Controls
-  blockAppInstallations: boolean; // Blocks APK sideloading & external package managers
-  blockGooglePlayStore: boolean;
-  blockAppUninstallation: boolean;
-  kioskModeType: 'single_app' | 'multi_app_whitelisted';
-  autoLaunchDefaultAppId?: string;
-  // Time & Work Shift Restrictions
-  enableWorkShiftLockout: boolean;
-  shiftStartTime: string; // "08:00"
-  shiftEndTime: string; // "18:00"
-  blockWeekends: boolean;
-  // Lock screen & Security Credentials
-  requirePinToUnlock: boolean;
-  pinMinLength: number;
-  inactivityLockTimeoutSeconds: number; // e.g. 60s
-  masterAdminBypassPin: string; // e.g. "9988"
-  // Web Content Filter
-  enableWebFilter: boolean;
-  blockSocialMedia: boolean;
-  blockStreamingAndVideo: boolean;
-  blockAdultAndGambling: boolean;
-  blockFileDownloads: boolean;
-}
+// MULTIVALE MOBILE CONTROL - Modelos de Dados e Tipos TypeScript
 
-export interface WhitelistedApp {
+export type UserRole = 'ADMINISTRADOR' | 'GESTOR' | 'VISUALIZACAO' | 'admin' | 'employee';
+
+export interface User {
   id: string;
+  uid?: string;
+  email: string;
   name: string;
-  packageName: string;
-  category: 'productivity' | 'communication' | 'sales' | 'support' | 'field' | 'settings' | 'utility';
-  icon: string; // Lucide icon name or identifier
-  color: string; // Tailwind color class or hex
-  description: string;
-  isEnabled: boolean;
-  isMandatory: boolean;
-  isSystemApp?: boolean;
-  badgeCount?: number;
-  version?: string;
-  allowedUrls?: string[];
-}
-
-export interface LocationHistoryPoint {
-  time: string;
-  lat: number;
-  lng: number;
-  speed: number;
-  address: string;
-}
-
-export interface GpsCheckInRecord {
-  id: string;
-  deviceId: string;
-  employeeName: string;
-  timestamp: string;
-  address: string;
-  lat: number;
-  lng: number;
-  notes?: string;
-  type: 'chegada' | 'saida' | 'abastecimento' | 'alerta_panico';
-}
-
-export interface CorporateDevice {
-  id: string;
-  assetTag: string;
-  model: string;
-  serialNumber: string;
-  imei: string;
-  assignedEmployee: string;
-  employeeEmail: string;
-  department: 'Vendas Externas' | 'Logística e Frota' | 'Operações & Campo' | 'Suporte Técnico' | 'Diretoria';
-  batteryLevel: number;
-  isCharging: boolean;
-  isOnline: boolean;
-  lastSync: string;
-  policyVersion: string;
-  complianceStatus: 'compliant' | 'warning' | 'violating' | 'locked';
-  ipAddress: string;
-  cellularSignal: 'strong' | 'medium' | 'weak' | 'offline';
-  wifiSsid: string;
-  isKioskActive: boolean;
-  isRemotelyLocked: boolean;
-  lockMessage?: string;
-  storageUsedGb: number;
-  storageTotalGb: number;
-  // GPS Tracking Real-Time Telemetry
-  latitude: number;
-  longitude: number;
-  currentAddress: string;
-  speedKmH: number;
-  heading: string;
-  satelliteCount: number;
-  gpsAccuracyMeters: number;
-  geofenceStatus: 'inside' | 'warning' | 'outside';
-  isMoving: boolean;
-  locationHistory?: LocationHistoryPoint[];
-}
-
-export interface SecurityIncident {
-  id: string;
-  deviceId: string;
-  deviceName: string;
-  employeeName: string;
-  timestamp: string;
-  eventType:
-    | 'blocked_url'
-    | 'blocked_install'
-    | 'blocked_usb'
-    | 'blocked_settings'
-    | 'blocked_screenshot'
-    | 'tamper_attempt'
-    | 'failed_pin'
-    | 'shift_lockout_bypass'
-    | 'unauthorized_wifi'
-    | 'blocked_hotspot';
-  details: string;
-  targetResource?: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  resolved: boolean;
-}
-
-export interface ManagerAuthCredentials {
-  managerUser: string;
-  managerPass: string;
-  managerName: string;
+  role: UserRole;
+  status: 'ATIVO' | 'INATIVO';
+  department?: string;
+  createdAt: string;
   lastLogin?: string;
 }
 
-export interface WebFilterDomain {
-  id: string;
-  domain: string;
-  category: 'intranet' | 'erp' | 'crm' | 'suporte' | 'bloqueado_geral';
-  isAllowed: boolean;
-  description: string;
-}
-
-export interface CompanySettings {
-  companyName: string;
-  department: string;
-  supportPhone: string;
-  supportEmail: string;
-  emergencyContact: string;
-  kioskWallpaper: 'modern_dark' | 'corporate_blue' | 'slate_minimal' | 'cyber_shield';
-  customWelcomeMessage: string;
-  allowedWifiSsid: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  sender: string;
-  senderRole: string;
-  text: string;
-  timestamp: string;
-  channel: 'geral' | 'vendas' | 'suporte' | 'avisos';
-  isSystem?: boolean;
-}
-
-export interface CrmCustomer {
+export interface Employee {
   id: string;
   name: string;
-  company: string;
-  phone: string;
+  registrationNumber: string; // Matrícula ou ID interno
+  teamId: string;
+  teamName: string;
+  associatedDeviceIds: string[];
+  status: 'ATIVO' | 'INATIVO';
   email: string;
-  status: 'Ativo' | 'Em Negociação' | 'Pendente';
-  lastOrderValue: number;
+  phone: string;
+  jobTitle: string;
+  createdAt: string;
 }
 
-export interface SupportTicket {
+export interface Team {
   id: string;
-  title: string;
-  category: 'Hardware' | 'Software Corporativo' | 'Rede / VPN' | 'Acesso';
-  priority: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
-  status: 'Aberto' | 'Em Andamento' | 'Resolvido';
-  date: string;
+  name: string; // Ex: Curitiba, Cascavel, Londrina, Maringá, Ponta Grossa, Rede Externa
+  region: string;
   description: string;
+  defaultPolicyId?: string;
+  memberCount: number;
+  deviceCount: number;
+  createdAt: string;
 }
 
-export interface FieldInspectionReport {
+export type DeviceStatus = 'ATIVO' | 'OFFLINE' | 'BLOQUEADO' | 'PENDENTE' | 'ERRO';
+export type ManagementMode = 'DEVICE_OWNER' | 'PROFILE_OWNER' | 'UNMANAGED';
+
+export interface Device {
   id: string;
-  clientName: string;
-  location: string;
-  date: string;
-  inspectorName: string;
-  equipmentChecked: boolean;
-  safetyCompliant: boolean;
-  networkSignalTested: boolean;
-  notes: string;
-  signatureCollected: boolean;
-  status: 'Rascunho' | 'Enviado' | 'Aprovado';
+  name: string;
+  manufacturer: string;
+  model: string;
+  androidVersion: string;
+  imei: string;
+  serialNumber: string;
+  phoneNumber?: string;
+  operator?: string; // Ex: Vivo Empresas, Claro Corporativo, TIM
+  employeeId?: string;
+  employeeName?: string;
+  teamId?: string;
+  teamName?: string;
+  policyId?: string;
+  policyName?: string;
+  status: DeviceStatus;
+  managementMode: ManagementMode;
+  batteryLevel: number;
+  isCharging?: boolean;
+  storageUsedGb: number;
+  storageTotalGb: number;
+  lastSync: string;
+  createdAt: string;
+  isRemotelyLocked?: boolean;
+  lockReason?: string;
+  ipAddress?: string;
+  wifiSsid?: string;
+  installedAppsCount?: number;
+  securityPatchDate?: string;
 }
+
+export type AppCategory = 
+  | 'Comunicação'
+  | 'Produtividade'
+  | 'Navegação e Mapas'
+  | 'Operações e Campo'
+  | 'Vendas e CRM'
+  | 'Utilidades'
+  | 'Redes Sociais'
+  | 'Streaming e Vídeo'
+  | 'Jogos e Lazer';
+
+export type AppStatus = 'AUTORIZADO' | 'BLOQUEADO';
+
+export interface Application {
+  id: string;
+  name: string;
+  packageName: string; // Ex: com.google.android.apps.maps, com.whatsapp
+  category: AppCategory;
+  description: string;
+  status: AppStatus;
+  icon?: string;
+  isSystemApp?: boolean;
+  minAndroidVersion?: string;
+  riskLevel?: 'BAIXO' | 'MEDIO' | 'ALTO';
+  createdAt: string;
+}
+
+export type SecurityModel = 'ALLOWLIST' | 'DENYLIST';
+
+export interface Policy {
+  id: string;
+  name: string;
+  description: string;
+  securityModel: SecurityModel; // Preferencialmente ALLOWLIST
+  allowedAppPackageNames: string[];
+  blockedAppPackageNames: string[];
+  associatedDeviceIds: string[];
+  associatedTeamIds: string[];
+  blockPlayStore: boolean;
+  blockUsbData: boolean;
+  blockHotspot: boolean;
+  blockFactoryReset: boolean;
+  blockDeveloperMode: boolean;
+  blockCamera?: boolean;
+  blockScreenshots?: boolean;
+  enforceKioskMode?: boolean;
+  autoLaunchAppPackage?: string;
+  status: 'ATIVO' | 'INATIVO';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PolicyAssignment {
+  id: string;
+  policyId: string;
+  policyName: string;
+  targetType: 'DEVICE' | 'TEAM';
+  targetId: string;
+  targetName: string;
+  assignedBy: string;
+  assignedAt: string;
+  syncStatus: 'APLICADO' | 'PENDENTE' | 'ERRO';
+}
+
+export type AlertType = 
+  | 'NO_SYNC'
+  | 'POLICY_FAILURE'
+  | 'UNAUTHORIZED_APP'
+  | 'PENDING_POLICY'
+  | 'UNMANAGED_DEVICE'
+  | 'DEVICE_LOCKED'
+  | 'COMMUNICATION_ERROR';
+
+export type AlertSeverity = 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+
+export interface Alert {
+  id: string;
+  deviceId?: string;
+  deviceName?: string;
+  employeeId?: string;
+  employeeName?: string;
+  type: AlertType;
+  severity: AlertSeverity;
+  message: string;
+  details?: string;
+  resolved: boolean;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  suggestedAction?: string;
+}
+
+export type AuditAction = 
+  | 'POLICY_CREATED'
+  | 'POLICY_UPDATED'
+  | 'POLICY_DELETED'
+  | 'POLICY_DUPLICATED'
+  | 'POLICY_ASSIGNED'
+  | 'POLICY_REMOVED'
+  | 'POLICY_APPLIED_DEVICE'
+  | 'POLICY_APPLIED_TEAM'
+  | 'APPLICATION_ALLOWED'
+  | 'APPLICATION_BLOCKED'
+  | 'APPLICATION_CREATED'
+  | 'APPLICATION_DELETED'
+  | 'APP_CATALOG_CREATED'
+  | 'APP_CATALOG_UPDATED'
+  | 'APP_CATALOG_DELETED'
+  | 'APP_AUTHORIZED'
+  | 'APP_BLOCKED'
+  | 'DEVICE_REGISTERED'
+  | 'DEVICE_UPDATED'
+  | 'DEVICE_DELETED'
+  | 'DEVICE_DISABLED'
+  | 'DEVICE_ACTIVATED'
+  | 'DEVICE_LOCKED'
+  | 'DEVICE_UNLOCKED'
+  | 'EMPLOYEE_CREATED'
+  | 'EMPLOYEE_UPDATED'
+  | 'EMPLOYEE_DELETED'
+  | 'TEAM_CREATED'
+  | 'TEAM_UPDATED'
+  | 'ALERT_RESOLVED'
+  | 'VIOLATION_BLOCKED';
+
+export interface AuditEvent {
+  id: string;
+  userId: string;
+  userName: string;
+  action: AuditAction;
+  targetType: string;
+  targetId: string;
+  targetName: string;
+  previousValue?: string;
+  newValue?: string;
+  timestamp: string;
+}
+
+export enum AndroidFeatureSupport {
+  AVAILABLE = 'AVAILABLE',
+  SUPPORTED = 'SUPPORTED',
+  BLOCKED = 'BLOCKED',
+  ALLOWED = 'ALLOWED',
+  REQUIRES_DEVICE_OWNER = 'REQUIRES_DEVICE_OWNER',
+  NOT_SUPPORTED = 'NOT_SUPPORTED',
+}
+
+export interface CompanyInfo {
+  name: string;
+  cnpj: string;
+  domain: string;
+  supportPhone: string;
+  supportEmail: string;
+  dpcPackageName: string;
+  dpcEnrollmentToken: string;
+}
+
+// -------------------------------------------------------------
+// Tipos de Compatibilidade Legada
+// -------------------------------------------------------------
+export type SecurityPolicy = any;
+export type WhitelistedApp = any;
+export type CorporateDevice = any;
+export type SecurityIncident = any;
+export type WebFilterDomain = any;
+export type CompanySettings = any;
+export type ChatMessage = any;
+export type CrmCustomer = any;
+export type SupportTicket = any;
+export type FieldInspectionReport = any;
+export type ManagerAuthCredentials = any;
+export type EmployeeProfile = any;
