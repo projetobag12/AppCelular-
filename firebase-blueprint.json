@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "policies": {
+      "title": "MDM Security Policy",
+      "description": "Active MDM corporate security rules and restrictions",
+      "fields": {
+        "policyName": { "type": "string" },
+        "version": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "blockUsbDataTransfer": { "type": "boolean" },
+        "blockBluetooth": { "type": "boolean" },
+        "blockTetheringAndHotspot": { "type": "boolean" },
+        "blockAppInstallations": { "type": "boolean" },
+        "masterAdminBypassPin": { "type": "string" }
+      }
+    },
+    "devices": {
+      "title": "Fleet Corporate Devices",
+      "description": "Smartphones in fleet with real-time GPS telemetry and lock status",
+      "fields": {
+        "assetTag": { "type": "string" },
+        "assignedEmployee": { "type": "string" },
+        "isRemotelyLocked": { "type": "boolean" },
+        "isOnline": { "type": "boolean" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "speedKmH": { "type": "number" },
+        "batteryLevel": { "type": "number" }
+      }
+    },
+    "incidents": {
+      "title": "Security Incidents",
+      "description": "Recorded security violation attempts and telemetry logs",
+      "fields": {
+        "deviceId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "eventType": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  }
+}

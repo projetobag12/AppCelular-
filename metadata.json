@@ -1,0 +1,6 @@
+{
+  "name": "KioskGuard MDM - Bloqueador e Gestor de Celulares Corporativos",
+  "description": "Sistema empresarial para bloqueio e gestão de smartphones corporativos em Modo Quiosque (Kiosk Mode), permitindo apenas aplicativos essenciais e bloqueando acessos externos e instalações não autorizadas.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
