@@ -440,12 +440,51 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
               {/* Granular App Selection */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold text-slate-300">
-                    Seleção Granular de Aplicativos Autorizados (Allowlist)
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-300 block">
+                      Seleção de Aplicativos Liberados para o Celular
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Marque os aplicativos que os colaboradores desta política poderão abrir no celular.
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-blue-400 font-semibold px-2 py-0.5 rounded bg-blue-950/60 border border-blue-800">
+                    {editingPolicy.allowedAppPackageNames?.length || 0} permitidos
                   </span>
-                  <span className="text-[10px] text-blue-400 font-semibold">
-                    {editingPolicy.allowedAppPackageNames?.length || 0} apps marcados
-                  </span>
+                </div>
+
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const all = applications.map((a) => a.packageName);
+                      setEditingPolicy({ ...editingPolicy, allowedAppPackageNames: all, blockedAppPackageNames: [] });
+                    }}
+                    className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg transition"
+                  >
+                    Marcar Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const all = applications.map((a) => a.packageName);
+                      setEditingPolicy({ ...editingPolicy, allowedAppPackageNames: [], blockedAppPackageNames: all });
+                    }}
+                    className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg transition"
+                  >
+                    Desmarcar Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const auto = applications.filter((a) => a.status === 'AUTORIZADO').map((a) => a.packageName);
+                      const block = applications.filter((a) => a.status === 'BLOQUEADO').map((a) => a.packageName);
+                      setEditingPolicy({ ...editingPolicy, allowedAppPackageNames: auto, blockedAppPackageNames: block });
+                    }}
+                    className="text-[10px] bg-blue-950 hover:bg-blue-900 text-blue-300 border border-blue-800 px-2 py-1 rounded-lg transition"
+                  >
+                    Padrão do Catálogo
+                  </button>
                 </div>
 
                 <div className="space-y-1.5 max-h-56 overflow-y-auto bg-[#11141A] p-3 rounded-xl border border-slate-800 custom-scrollbar">

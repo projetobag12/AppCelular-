@@ -273,23 +273,35 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     {isAllowed ? (
                       <>
                         <XCircle className="w-3.5 h-3.5" />
-                        <span>Mudar para Bloquear</span>
+                        <span>Bloquear App</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Mudar para Autorizar</span>
+                        <span>Liberar App</span>
                       </>
                     )}
                   </button>
 
-                  <button
-                    onClick={() => onDeleteApplication(app.id)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-800 transition"
-                    title="Remover do Catálogo"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setEditingApp({ ...app });
+                        setIsModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      title="Editar Detalhes"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteApplication(app.id)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-800 transition"
+                      title="Remover do Catálogo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
