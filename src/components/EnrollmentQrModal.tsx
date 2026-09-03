@@ -25,18 +25,20 @@ interface EnrollmentQrModalProps {
   companyInfo: CompanyInfo;
 }
 
-type ProvisioningMode = 'google_dpc' | 'test_dpc' | 'custom_apk';
+type ProvisioningMode = 'pwa_web' | 'google_dpc' | 'test_dpc' | 'custom_apk';
 
 export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
   isOpen,
   onClose,
   companyInfo
 }) => {
-  const [provisioningMode, setProvisioningMode] = useState<ProvisioningMode>('google_dpc');
+  const [provisioningMode, setProvisioningMode] = useState<ProvisioningMode>('pwa_web');
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const vercelAppUrl = 'https://app-celular-one.vercel.app/?mode=colaborador';
   const [customApkUrl, setCustomApkUrl] = useState(
-    'https://app.multivale.com.br/agent/multivale-agent-dpc.apk'
+    'https://github.com/projetobag12/AppCelular-/releases/download/v1.0.0/app-release.apk'
   );
   const [customChecksum, setCustomChecksum] = useState(
     '09a8f7e6d5c4b3a2109876543210fedcba9876543210fedcba9876543210fedc'
@@ -46,6 +48,15 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
 
   // Gerar o JSON conforme o modo selecionado
   const getDpcPayload = () => {
+    if (provisioningMode === 'pwa_web') {
+      return {
+        type: 'PWA_WEB_APP',
+        url: vercelAppUrl,
+        name: 'Multivale Mobile Control',
+        description: 'Aplicativo PWA Corporativo Multivale'
+      };
+    }
+
     if (provisioningMode === 'google_dpc') {
       // Modo Nativo Google Android Device Policy (Download oficial e automático do Google)
       return {
@@ -53,7 +64,7 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
         'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE': {
           'com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN': companyInfo.dpcEnrollmentToken || 'MV-DPC-2026-X99',
           enterprise_name: companyInfo.name || 'Multivale Telecomunicações',
-          server_url: typeof window !== 'undefined' ? window.location.origin : 'https://multivale-mobilecontrol.web.app'
+          server_url: vercelAppUrl
         }
       };
     }
@@ -87,9 +98,14 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
 
   const dpcConfigJson = JSON.stringify(getDpcPayload(), null, 2);
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
-    dpcConfigJson
-  )}&bgcolor=141820&color=38bdf8`;
+  const qrImageUrl =
+    provisioningMode === 'pwa_web'
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
+          vercelAppUrl
+        )}&bgcolor=141820&color=38bdf8`
+      : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
+          dpcConfigJson
+        )}&bgcolor=141820&color=38bdf8`;
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(companyInfo.dpcEnrollmentToken);
@@ -103,6 +119,12 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
     setTimeout(() => setCopiedJson(false), 3000);
   };
 
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(vercelAppUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 3000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <div className="bg-[#141820] border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden font-sans">
@@ -113,8 +135,8 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Provisionamento Android Enterprise (Device Owner / DPC)</h3>
-              <p className="text-[10px] text-slate-400">Padrão Oficial do Google para Inscrição de Aparelhos</p>
+              <h3 className="text-sm font-bold text-white">Provisionamento e Instalação no Celular</h3>
+              <p className="text-[10px] text-slate-400">PWA Web App Direto ou Android Enterprise (Device Owner / DPC)</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-lg">
@@ -127,34 +149,54 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
           {/* Seletor de Modo de Provisionamento */}
           <div>
             <label className="block text-[11px] font-bold text-slate-400 mb-2">
-              Selecione o Método do Agente Android para o QR Code:
+              Selecione o Método de Instalação / Acesso no Celular:
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
-                onClick={() => setProvisioningMode('google_dpc')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
-                  provisioningMode === 'google_dpc'
+                onClick={() => setProvisioningMode('pwa_web')}
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
+                  provisioningMode === 'pwa_web'
                     ? 'bg-blue-950/50 border-blue-500 text-white ring-1 ring-blue-500/40'
                     : 'bg-[#11141A] border-slate-800 text-slate-400 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-blue-400 flex items-center gap-1">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>App PWA (Vercel)</span>
+                  </span>
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-blue-600/30 text-blue-300 font-bold">Imediato</span>
+                </div>
+                <p className="text-[10px] text-slate-300 leading-tight">
+                  Instala direto no celular pelo Chrome sem precisar formatar.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProvisioningMode('google_dpc')}
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
+                  provisioningMode === 'google_dpc'
+                    ? 'bg-blue-950/50 border-blue-500 text-white ring-1 ring-blue-500/40'
+                    : 'bg-[#11141A] border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-sky-400 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Google DPC</span>
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 font-bold">Recomendado</span>
                 </div>
                 <p className="text-[10px] text-slate-300 leading-tight">
-                  Download 100% automático pelos servidores do Google Play. Sem falhas de link.
+                  Inscrição corporativa do Google no celular formatado.
                 </p>
               </button>
 
               <button
                 type="button"
                 onClick={() => setProvisioningMode('test_dpc')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
                   provisioningMode === 'test_dpc'
                     ? 'bg-blue-950/50 border-blue-500 text-white ring-1 ring-blue-500/40'
                     : 'bg-[#11141A] border-slate-800 text-slate-400 hover:border-slate-700'
@@ -163,19 +205,18 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-emerald-400 flex items-center gap-1">
                     <DownloadCloud className="w-3.5 h-3.5" />
-                    <span>Google TestDPC</span>
+                    <span>TestDPC</span>
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-600/30 text-emerald-300 font-bold">Oficial APK</span>
                 </div>
                 <p className="text-[10px] text-slate-300 leading-tight">
-                  APK aberto de referência do Google para homologação de travas e Kiosk.
+                  APK aberto de testes de Device Owner e Kiosk do Google.
                 </p>
               </button>
 
               <button
                 type="button"
                 onClick={() => setProvisioningMode('custom_apk')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 ${
                   provisioningMode === 'custom_apk'
                     ? 'bg-blue-950/50 border-blue-500 text-white ring-1 ring-blue-500/40'
                     : 'bg-[#11141A] border-slate-800 text-slate-400 hover:border-slate-700'
@@ -184,12 +225,11 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-amber-400 flex items-center gap-1">
                     <Server className="w-3.5 h-3.5" />
-                    <span>APK Próprio</span>
+                    <span>APK GitHub</span>
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">Personalizado</span>
                 </div>
                 <p className="text-[10px] text-slate-300 leading-tight">
-                  Insira a URL HTTPS do seu arquivo APK hospedado no seu servidor.
+                  Link do arquivo APK compilado no GitHub.
                 </p>
               </button>
             </div>
@@ -200,11 +240,14 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
             <ShieldCheck className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-white text-xs">
+                {provisioningMode === 'pwa_web' && 'Modo Aplicativo PWA Web Selecionado (Vercel)'}
                 {provisioningMode === 'google_dpc' && 'Modo Google Android Device Policy Selecionado'}
                 {provisioningMode === 'test_dpc' && 'Modo Google TestDPC Selecionado (APK Direto do GitHub do Google)'}
                 {provisioningMode === 'custom_apk' && 'Modo APK Próprio Multivale'}
               </h4>
               <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                {provisioningMode === 'pwa_web' &&
+                  'Você pode abrir a câmera de qualquer celular e ler o QR Code abaixo para abrir e instalar o aplicativo da Multivale imediatamente na tela inicial do aparelho via Chrome.'}
                 {provisioningMode === 'google_dpc' &&
                   'Este QR Code instrui o assistente do Android a baixar o aplicativo do agente diretamente da infraestrutura do Google Play, sem depender de links externos.'}
                 {provisioningMode === 'test_dpc' &&
@@ -221,80 +264,156 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
               <div className="bg-[#11141A] p-3 rounded-2xl border-2 border-blue-500/30 shadow-lg shadow-blue-950/40 mb-2">
                 <img
                   src={qrImageUrl}
-                  alt="QR Code de Provisionamento Android Device Owner"
+                  alt="QR Code de Provisionamento Android Device Owner ou PWA"
                   className="w-48 h-48 object-contain rounded-lg"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-blue-400 text-xs select-all">
-                  {companyInfo.dpcEnrollmentToken}
-                </span>
-                <button
-                  onClick={handleCopyToken}
-                  className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                  title="Copiar Token"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {copiedToken && <span className="text-[10px] text-emerald-400 mt-1">Token copiado!</span>}
+              {provisioningMode === 'pwa_web' ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-blue-400 text-[11px] truncate max-w-[180px]">
+                      {vercelAppUrl}
+                    </span>
+                    <button
+                      onClick={handleCopyUrl}
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                      title="Copiar URL"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {copiedUrl && <span className="text-[10px] text-emerald-400 block">Link copiado!</span>}
+                  <a
+                    href={vercelAppUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-blue-400 hover:underline inline-block font-semibold"
+                  >
+                    Abrir no navegador &rarr;
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-blue-400 text-xs select-all">
+                      {companyInfo.dpcEnrollmentToken}
+                    </span>
+                    <button
+                      onClick={handleCopyToken}
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                      title="Copiar Token"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {copiedToken && <span className="text-[10px] text-emerald-400 mt-1">Token copiado!</span>}
+                </>
+              )}
             </div>
 
             {/* Instructions Column */}
             <div className="md:col-span-7 bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-2.5">
               <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
                 <Smartphone className="w-4 h-4 text-emerald-400" />
-                <span>Instruções no Aparelho:</span>
+                <span>
+                  {provisioningMode === 'pwa_web'
+                    ? 'Instruções para Instalar no Celular pelo Chrome:'
+                    : 'Instruções no Aparelho Formatado:'}
+                </span>
               </h4>
-              <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-                <li>
-                  Ligue o smartphone na tela inicial <strong>"Bem-vindo"</strong> (aparelho novo ou formatado).
-                </li>
-                <li>
-                  Toque <strong>6 vezes seguidas</strong> no espaço vazio da tela para abrir o leitor.
-                </li>
-                <li>
-                  Conecte ao Wi-Fi e aponte a câmera para o QR Code ao lado.
-                </li>
-                <li>
-                  O celular fará o download e prosseguirá para a conclusão da inscrição.
-                </li>
-              </ol>
 
-              {/* Botões de Download Direto do APK */}
-              <div className="pt-2 border-t border-slate-800 space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 block">Opções para Obter o Aplicativo:</span>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href="https://play.google.com/store/apps/details?id=com.afwsamples.testdpc"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] transition shadow-md shadow-emerald-950/40"
-                  >
-                    <DownloadCloud className="w-3.5 h-3.5" />
-                    <span>Baixar Oficial na Google Play Store</span>
-                  </a>
-                  <a
-                    href="https://github.com/googlesamples/android-testdpc/releases"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] transition"
-                  >
-                    <span>Ver Releases no GitHub Oficial</span>
-                  </a>
+              {provisioningMode === 'pwa_web' ? (
+                <ol className="list-decimal list-inside space-y-2 text-slate-300 text-[11px] leading-relaxed">
+                  <li>
+                    Abra a <strong>câmera normal</strong> do celular (ou o Google Chrome) e aponte para o QR Code ao lado.
+                  </li>
+                  <li>
+                    Acesse a página do aplicativo na Vercel (<code>app-celular-one.vercel.app</code>).
+                  </li>
+                  <li>
+                    No Google Chrome, toque no menu de <strong>3 pontinhos (⋮)</strong> no canto superior direito.
+                  </li>
+                  <li>
+                    Toque em <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.
+                  </li>
+                  <li>
+                    <strong>Pronto!</strong> O aplicativo Multivale fica salvo na tela inicial com ícone próprio e abre em tela cheia como um app nativo.
+                  </li>
+                </ol>
+              ) : (
+                <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
+                  <li>
+                    Ligue o smartphone na tela inicial <strong>"Bem-vindo"</strong> (aparelho novo ou formatado).
+                  </li>
+                  <li>
+                    Toque <strong>6 vezes seguidas</strong> no espaço vazio da tela para abrir o leitor.
+                  </li>
+                  <li>
+                    Conecte ao Wi-Fi e aponte a câmera para o QR Code ao lado.
+                  </li>
+                  <li>
+                    O celular fará o download e prosseguirá para a conclusão da inscrição.
+                  </li>
+                </ol>
+              )}
+
+              {provisioningMode !== 'pwa_web' && (
+                <div className="pt-2 border-t border-slate-800 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 block">Opções para Obter o Aplicativo:</span>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href="https://play.google.com/store/apps/details?id=com.afwsamples.testdpc"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] transition shadow-md shadow-emerald-950/40"
+                    >
+                      <DownloadCloud className="w-3.5 h-3.5" />
+                      <span>Baixar Oficial na Google Play Store</span>
+                    </a>
+                    <a
+                      href="https://github.com/googlesamples/android-testdpc/releases"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] transition"
+                    >
+                      <span>Ver Releases no GitHub Oficial</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
           {/* Configuração avançada quando custom_apk está selecionado */}
           {provisioningMode === 'custom_apk' && (
             <div className="bg-[#11141A] p-4 rounded-2xl border border-amber-800/40 space-y-3 animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-amber-400" />
-                <h5 className="font-bold text-white text-xs">Configurar Link do APK e Checksum SHA-256</h5>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-amber-400" />
+                  <h5 className="font-bold text-white text-xs">Configurar Link do APK e Checksum SHA-256</h5>
+                </div>
+                <span className="text-[10px] text-slate-400">Repositório: projetobag12/AppCelular-</span>
               </div>
+
+              <div className="bg-amber-950/30 border border-amber-700/40 rounded-xl p-3 text-[11px] text-amber-200/90 space-y-1.5">
+                <p className="font-semibold text-amber-300">Como hospedar seu APK no GitHub para o QR Code baixar direto:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[10.5px]">
+                  <li>
+                    Verifique se o repositório está <strong>Público</strong> em <em>Settings &gt; Change repository visibility</em>. (Se estiver privado, o celular recebe erro 404).
+                  </li>
+                  <li>
+                    No seu repositório no GitHub, clique na aba lateral <strong>Releases &gt; Create a new release</strong>.
+                  </li>
+                  <li>
+                    Arraste o seu arquivo <code>.apk</code> no campo de upload e clique em <strong>Publish release</strong>.
+                  </li>
+                  <li>
+                    Copie o link direto do arquivo <code>.apk</code> e cole no campo abaixo.
+                  </li>
+                </ol>
+              </div>
+
               <div className="space-y-2">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Direta do APK (HTTPS):</label>
@@ -302,7 +421,7 @@ export const EnrollmentQrModal: React.FC<EnrollmentQrModalProps> = ({
                     type="text"
                     value={customApkUrl}
                     onChange={(e) => setCustomApkUrl(e.target.value)}
-                    placeholder="https://meudominio.com/agent.apk"
+                    placeholder="https://github.com/projetobag12/AppCelular-/releases/download/v1.0.0/app-release.apk"
                     className="w-full bg-[#0E1015] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:border-blue-500 focus:outline-none"
                   />
                 </div>

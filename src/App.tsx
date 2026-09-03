@@ -16,6 +16,7 @@ import { AlertsView } from './views/AlertsView';
 import { EventsView } from './views/EventsView';
 import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
+import { CollaboratorKioskView } from './views/CollaboratorKioskView';
 
 // Initial Data & Types
 import {
@@ -44,7 +45,7 @@ import { db, collection, onSnapshot, doc, setDoc, deleteDoc } from './lib/fireba
 import { firestoreService } from './lib/firestoreService';
 
 function MainApp() {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, logout } = useAuth();
 
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
 
@@ -58,9 +59,28 @@ function MainApp() {
   const [events, setEvents] = useState<AuditEvent[]>(INITIAL_EVENTS);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(INITIAL_COMPANY_INFO);
 
-  // Modals
+  // Modals & Mode
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [selectedDeviceForDetails, setSelectedDeviceForDetails] = useState<Device | null>(null);
+  const [isKioskMode, setIsKioskMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'colaborador' || params.get('mode') === 'kiosk') {
+        return true;
+      }
+      if (params.get('mode') === 'gestor') {
+        const savedUser = localStorage.getItem('multivale_user');
+        return !savedUser;
+      }
+      const savedMode = localStorage.getItem('multivale_app_mode');
+      if (savedMode === 'gestor') {
+        const savedUser = localStorage.getItem('multivale_user');
+        return !savedUser;
+      }
+      return true;
+    }
+    return true;
+  });
 
   // Firestore Sync Listeners (with graceful fallback to initial local state)
   useEffect(() => {
@@ -558,6 +578,65 @@ function MainApp() {
     } catch {}
   };
 
+  // Send SOS/Security Alert from Mobile Kiosk
+  const handleSendAlert = async (
+    deviceId: string,
+    message: string,
+    severity: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA'
+  ) => {
+    const dev = devices.find((d) => d.id === deviceId);
+    const newAlert: Alert = {
+      id: `alt-${Date.now()}`,
+      deviceId,
+      deviceName: dev?.name || 'Smartphone Corporativo',
+      type: 'COMMUNICATION_ERROR',
+      severity,
+      message,
+      resolved: false,
+      createdAt: new Date().toISOString()
+    };
+    setAlerts((prev) => [newAlert, ...prev]);
+    try {
+      await setDoc(doc(db, 'alerts', newAlert.id), newAlert);
+    } catch {}
+  };
+
+  const handleEnterKiosk = () => {
+    setIsKioskMode(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('multivale_app_mode', 'colaborador');
+    }
+  };
+
+  const handleExitKiosk = () => {
+    setIsKioskMode(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('multivale_app_mode', 'gestor');
+    }
+  };
+
+  const handleLockGestor = async () => {
+    await logout();
+    setIsKioskMode(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('multivale_app_mode', 'colaborador');
+    }
+  };
+
+  // Se estiver no Modo Colaborador ou se não houver gestor autenticado
+  if (isKioskMode || !currentUser) {
+    return (
+      <CollaboratorKioskView
+        devices={devices}
+        policies={policies}
+        applications={applications}
+        employees={employees}
+        onExitKiosk={handleExitKiosk}
+        onSendAlert={handleSendAlert}
+      />
+    );
+  }
+
   const unresolvedCount = alerts.filter((a) => !a.resolved).length;
 
   return (
@@ -568,6 +647,7 @@ function MainApp() {
         onSelectTab={setCurrentTab}
         unresolvedAlertsCount={unresolvedCount}
         onOpenEnrollment={() => setIsEnrollmentModalOpen(true)}
+        onEnterKioskMode={handleEnterKiosk}
       />
 
       {/* Main Content Area */}
@@ -576,6 +656,8 @@ function MainApp() {
           companyInfo={companyInfo}
           onOpenEnrollmentModal={() => setIsEnrollmentModalOpen(true)}
           onNavigateToDevices={() => setCurrentTab('devices')}
+          onEnterKioskMode={handleEnterKiosk}
+          onLockGestor={handleLockGestor}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
@@ -745,6 +827,7 @@ function MainApp() {
             setSelectedDeviceForDetails(null);
             setIsEnrollmentModalOpen(true);
           }}
+          onUpdatePolicy={handleSavePolicy}
         />
       )}
     </div>

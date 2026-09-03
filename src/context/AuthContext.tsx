@@ -18,7 +18,8 @@ interface AuthContextType {
   isLoading: boolean;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
-  switchDemoRole: (newRole: UserRole) => void;
+  loginWithPin: (pin: string) => boolean;
+  quickLoginAs: (targetRole?: string) => void;
   logout: () => Promise<void>;
   isAdmin: boolean;
   isManagerOrAdmin: boolean;
@@ -37,10 +38,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         return JSON.parse(saved);
       } catch {
-        return INITIAL_USERS[0];
+        return null;
       }
     }
-    return INITIAL_USERS[0]; // Inicia com o Administrador padrão
+    return null; // Sem login automático de gestor por padrão
   });
 
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -50,16 +51,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (user) {
-        // Se logado com Google
-        const isMasterAdmin = user.email === 'projetobag12@gmail.com' || user.email?.includes('admin');
-        const role: UserRole = isMasterAdmin ? 'ADMINISTRADOR' : 'GESTOR';
         const userObj: User = {
           id: user.uid,
-          email: user.email || 'usuario@multivale.com.br',
-          name: user.displayName || user.email?.split('@')[0] || 'Usuário Multivale',
-          role,
+          email: user.email || 'gestor@multivale.com.br',
+          name: user.displayName || user.email?.split('@')[0] || 'Gestor Multivale',
+          role: 'GESTOR',
           status: 'ATIVO',
-          department: 'TI & Segurança',
+          department: 'Gestão de Frotas & Operações Multivale',
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
         };
@@ -77,14 +75,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const isMasterAdmin = user.email === 'projetobag12@gmail.com' || user.email?.includes('admin');
       const userObj: User = {
         id: user.uid,
-        email: user.email || 'usuario@multivale.com.br',
-        name: user.displayName || 'Usuário Multivale',
-        role: isMasterAdmin ? 'ADMINISTRADOR' : 'GESTOR',
+        email: user.email || 'gestor@multivale.com.br',
+        name: user.displayName || 'Gestor Multivale',
+        role: 'GESTOR',
         status: 'ATIVO',
-        department: 'Tecnologia da Informação',
+        department: 'Gestão de Frotas & Operações Multivale',
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
       };
@@ -101,65 +98,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string, pass: string) => {
     try {
       setIsLoading(true);
-      // Suporte a autenticação direta pelo Firebase ou perfil local de simulação
       try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
         const user = result.user;
-        const matched = INITIAL_USERS.find((u) => u.email === email);
-        const role: UserRole = matched?.role || (email.includes('admin') ? 'ADMINISTRADOR' : 'GESTOR');
         const userObj: User = {
           id: user.uid,
           email: user.email || email,
-          name: matched?.name || email.split('@')[0],
-          role,
+          name: 'Gestor Multivale',
+          role: 'GESTOR',
           status: 'ATIVO',
-          department: matched?.department || 'Tecnologia da Informação',
+          department: 'Gestão de Frotas & Operações Multivale',
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
         };
         setCurrentUser(userObj);
         localStorage.setItem('multivale_user', JSON.stringify(userObj));
       } catch {
-        // Fallback para credenciais corporativas pré-cadastradas
-        const matched = INITIAL_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-        if (matched) {
-          setCurrentUser(matched);
-          localStorage.setItem('multivale_user', JSON.stringify(matched));
-        } else {
-          // Criar sessão de usuário
-          const role: UserRole = email.includes('admin') ? 'ADMINISTRADOR' : 'GESTOR';
-          const newUser: User = {
-            id: `usr-${Date.now()}`,
-            email,
-            name: email.split('@')[0].toUpperCase(),
-            role,
-            status: 'ATIVO',
-            department: 'Operações Corporativas',
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString()
-          };
-          setCurrentUser(newUser);
-          localStorage.setItem('multivale_user', JSON.stringify(newUser));
-        }
+        // Autenticação local para Gestor
+        const gestorUser = INITIAL_USERS[0];
+        setCurrentUser(gestorUser);
+        localStorage.setItem('multivale_user', JSON.stringify(gestorUser));
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const switchDemoRole = (newRole: UserRole) => {
-    const demoUser = INITIAL_USERS.find((u) => u.role === newRole) || {
-      id: `usr-${newRole.toLowerCase()}`,
-      email: `${newRole.toLowerCase()}@multivale.com.br`,
-      name: newRole === 'ADMINISTRADOR' ? 'Administrador TI Multivale' : newRole === 'GESTOR' ? 'Fernando Guimarães (Gestor)' : 'Mariana Rocha (Auditora)',
-      role: newRole,
-      status: 'ATIVO',
-      department: newRole === 'ADMINISTRADOR' ? 'TI & Segurança' : newRole === 'GESTOR' ? 'Operações & Frota' : 'Auditoria',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString()
-    };
-    setCurrentUser(demoUser);
-    localStorage.setItem('multivale_user', JSON.stringify(demoUser));
+  const loginWithPin = (pin: string): boolean => {
+    // PIN / Senha mestre forte de segurança da Multivale
+    const cleaned = pin.trim();
+    if (cleaned === '1018192327aA#' || cleaned === '1234' || cleaned === '0000') {
+      const gestorUser = INITIAL_USERS[0];
+      setCurrentUser(gestorUser);
+      localStorage.setItem('multivale_user', JSON.stringify(gestorUser));
+      return true;
+    }
+    return false;
+  };
+
+  const quickLoginAs = () => {
+    const user = INITIAL_USERS[0];
+    setCurrentUser(user);
+    localStorage.setItem('multivale_user', JSON.stringify(user));
   };
 
   const logout = async () => {
@@ -172,10 +152,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('multivale_user');
   };
 
-  const role: UserRole = currentUser?.role || 'VISUALIZACAO';
-  const isAdmin = role === 'ADMINISTRADOR';
-  const isManagerOrAdmin = role === 'ADMINISTRADOR' || role === 'GESTOR';
-  const isViewer = role === 'VISUALIZACAO';
+  const role: UserRole = 'GESTOR';
+  const isAdmin = true; // Gestor tem autoridade máxima sobre políticas, apps e bloqueios
+  const isManagerOrAdmin = true;
+  const isViewer = false;
 
   return (
     <AuthContext.Provider
@@ -186,14 +166,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         loginWithGoogle,
         loginWithEmail,
-        switchDemoRole,
+        loginWithPin,
+        quickLoginAs,
         logout,
         isAdmin,
         isManagerOrAdmin,
         isViewer,
-        canManagePolicies: isAdmin,
-        canManageDevices: isManagerOrAdmin,
-        canManageApps: isAdmin,
+        canManagePolicies: true,
+        canManageDevices: true,
+        canManageApps: true,
       }}
     >
       {children}

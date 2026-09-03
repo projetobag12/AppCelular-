@@ -22,34 +22,24 @@ export const INITIAL_COMPANY_INFO: CompanyInfo = {
 
 export const INITIAL_USERS: User[] = [
   {
-    id: 'usr-admin-1',
-    email: 'projetobag12@gmail.com',
-    name: 'Administrador TI Multivale',
-    role: 'ADMINISTRADOR',
-    status: 'ATIVO',
-    department: 'Tecnologia da Informação & Segurança',
-    createdAt: '2026-01-15T08:00:00Z',
-    lastLogin: '2026-09-02T08:15:00Z'
-  },
-  {
     id: 'usr-gestor-1',
-    email: 'gestor.operacoes@multivale.com.br',
-    name: 'Fernando Guimarães',
+    email: 'gestor@multivale.com.br',
+    name: 'Fernando Guimarães (Gestor)',
     role: 'GESTOR',
     status: 'ATIVO',
-    department: 'Operações & Frota',
-    createdAt: '2026-02-10T09:30:00Z',
-    lastLogin: '2026-09-01T17:40:00Z'
+    department: 'Gestão de Frotas & Operações Multivale',
+    createdAt: '2026-01-15T08:00:00Z',
+    lastLogin: '2026-09-03T12:00:00Z'
   },
   {
-    id: 'usr-viewer-1',
-    email: 'auditoria@multivale.com.br',
-    name: 'Mariana Rocha',
-    role: 'VISUALIZACAO',
+    id: 'usr-gestor-2',
+    email: 'projetobag12@gmail.com',
+    name: 'Gestor Operacional & MDM',
+    role: 'GESTOR',
     status: 'ATIVO',
-    department: 'Auditoria & Compliance',
-    createdAt: '2026-03-01T14:00:00Z',
-    lastLogin: '2026-08-30T11:20:00Z'
+    department: 'Operações & Frota Multivale',
+    createdAt: '2026-02-10T09:30:00Z',
+    lastLogin: '2026-09-03T12:10:00Z'
   }
 ];
 
@@ -425,12 +415,22 @@ export const INITIAL_POLICIES: Policy[] = [
     blockPlayStore: true,
     blockUsbData: true,
     blockHotspot: true,
+    blockUsbTethering: true,
+    blockBluetoothTethering: true,
     blockFactoryReset: true,
     blockDeveloperMode: true,
     blockCamera: false,
     blockScreenshots: false,
     enforceKioskMode: true,
     autoLaunchAppPackage: 'br.com.multivale.campo.ordemservico',
+    allowedFolders: [
+      '/storage/emulated/0/MultivaleDocumentos',
+      '/storage/emulated/0/MultivaleFotosCampo',
+      '/storage/emulated/0/Download/Corporativo'
+    ],
+    blockExternalStorageAccess: true,
+    blockSettingsAccess: true,
+    blockStatusBarExpand: true,
     status: 'ATIVO',
     createdAt: '2026-01-15T09:00:00Z',
     updatedAt: '2026-08-25T14:30:00Z'
@@ -462,6 +462,8 @@ export const INITIAL_POLICIES: Policy[] = [
     blockPlayStore: true,
     blockUsbData: true,
     blockHotspot: false,
+    blockUsbTethering: false,
+    blockBluetoothTethering: false,
     blockFactoryReset: true,
     blockDeveloperMode: true,
     blockCamera: false,
@@ -497,6 +499,8 @@ export const INITIAL_POLICIES: Policy[] = [
     blockPlayStore: true,
     blockUsbData: true,
     blockHotspot: true,
+    blockUsbTethering: true,
+    blockBluetoothTethering: true,
     blockFactoryReset: true,
     blockDeveloperMode: true,
     status: 'ATIVO',

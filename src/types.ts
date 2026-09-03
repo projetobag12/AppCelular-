@@ -114,13 +114,19 @@ export interface Policy {
   associatedTeamIds: string[];
   blockPlayStore: boolean;
   blockUsbData: boolean;
-  blockHotspot: boolean;
+  blockHotspot: boolean; // Bloqueia Roteador Wi-Fi (Hotspot)
+  blockUsbTethering?: boolean; // Bloqueia Roteamento de Internet via Cabo USB
+  blockBluetoothTethering?: boolean; // Bloqueia Roteamento de Internet via Bluetooth
   blockFactoryReset: boolean;
   blockDeveloperMode: boolean;
   blockCamera?: boolean;
   blockScreenshots?: boolean;
   enforceKioskMode?: boolean;
   autoLaunchAppPackage?: string;
+  allowedFolders?: string[]; // Pastas e diretórios autorizados (Ex: /storage/emulated/0/MultivaleDocumentos, /Download)
+  blockExternalStorageAccess?: boolean; // Restringe o explorador de arquivos apenas às pastas permitidas
+  blockSettingsAccess?: boolean; // Bloqueia acesso ao menu de configurações do Android
+  blockStatusBarExpand?: boolean; // Bloqueia o puxar da barra de notificações/atalhos rápidos
   status: 'ATIVO' | 'INATIVO';
   createdAt: string;
   updatedAt: string;

@@ -19,7 +19,14 @@ import {
   Package,
   Layers,
   Phone,
-  Hash
+  Hash,
+  FolderCheck,
+  FolderLock,
+  Folder,
+  WifiOff,
+  Radio,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Device, Policy, Employee, Team, Application } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +44,7 @@ interface DeviceDetailsModalProps {
   onUnlockDevice: (deviceId: string) => Promise<void>;
   onSyncDevice: (deviceId: string) => Promise<void>;
   onOpenEnrollment: () => void;
+  onUpdatePolicy?: (policy: Policy) => Promise<void>;
 }
 
 export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
@@ -51,9 +59,10 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
   onLockDevice,
   onUnlockDevice,
   onSyncDevice,
-  onOpenEnrollment
+  onOpenEnrollment,
+  onUpdatePolicy
 }) => {
-  const { canManageDevices } = useAuth();
+  const { canManageDevices, canManagePolicies } = useAuth();
   const [activeTab, setActiveTab] = useState<'info' | 'policy' | 'apps' | 'security'>('info');
   const [isChangingPolicy, setIsChangingPolicy] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState(device.policyId || policies[0]?.id || '');
@@ -61,6 +70,8 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
   const [lockReason, setLockReason] = useState('Bloqueio preventivo pelo Administrador da Multivale.');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [selectedAppToAdd, setSelectedAppToAdd] = useState('');
+  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -77,21 +88,33 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
     (app) => !currentPolicy?.allowedAppPackageNames?.includes(app.packageName)
   );
 
+  const isRoutingBlocked = Boolean(
+    currentPolicy?.blockHotspot || currentPolicy?.blockUsbTethering || currentPolicy?.blockBluetoothTethering
+  );
+
+  const showFeedback = (msg: string) => {
+    setActionSuccessMsg(msg);
+    setTimeout(() => setActionSuccessMsg(null), 3000);
+  };
+
   const handleApplyPolicySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPolicyId) return;
     await onApplyPolicy(device.id, selectedPolicyId);
     setIsChangingPolicy(false);
+    showFeedback('Política vinculada com sucesso ao smartphone!');
   };
 
   const handleLockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onLockDevice(device.id, lockReason);
     setIsLocking(false);
+    showFeedback('Dispositivo bloqueado imediatamente.');
   };
 
   const handleUnlockSubmit = async () => {
     await onUnlockDevice(device.id);
+    showFeedback('Dispositivo desbloqueado.');
   };
 
   const handleManualSync = async () => {
@@ -102,246 +125,292 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
     setTimeout(() => setSyncSuccess(false), 3000);
   };
 
-  const formatDateTime = (isoString?: string) => {
-    if (!isoString) return '-';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch {
-      return isoString;
-    }
+  // Gerenciamento Rápido de Roteamento no Aparelho
+  const handleToggleRouting = async () => {
+    if (!currentPolicy || !onUpdatePolicy) return;
+    const shouldBlock = !isRoutingBlocked;
+    const updated: Policy = {
+      ...currentPolicy,
+      blockHotspot: shouldBlock,
+      blockUsbTethering: shouldBlock,
+      blockBluetoothTethering: shouldBlock,
+      updatedAt: new Date().toISOString()
+    };
+    await onUpdatePolicy(updated);
+    showFeedback(
+      shouldBlock
+        ? 'Roteamento Móvel (Hotspot / USB) BLOQUEADO com sucesso!'
+        : 'Roteamento Móvel LIBERADO para este aparelho!'
+    );
+  };
+
+  // Remover App do Aparelho
+  const handleRemoveApp = async (pkg: string) => {
+    if (!currentPolicy || !onUpdatePolicy) return;
+    const updated: Policy = {
+      ...currentPolicy,
+      allowedAppPackageNames: (currentPolicy.allowedAppPackageNames || []).filter((p) => p !== pkg),
+      blockedAppPackageNames: [...(currentPolicy.blockedAppPackageNames || []), pkg],
+      updatedAt: new Date().toISOString()
+    };
+    await onUpdatePolicy(updated);
+    const appObj = applications.find((a) => a.packageName === pkg);
+    showFeedback(`Aplicativo "${appObj?.name || pkg}" removido deste aparelho!`);
+  };
+
+  // Adicionar App ao Aparelho
+  const handleAddApp = async () => {
+    if (!currentPolicy || !onUpdatePolicy || !selectedAppToAdd) return;
+    if (currentPolicy.allowedAppPackageNames?.includes(selectedAppToAdd)) return;
+
+    const updated: Policy = {
+      ...currentPolicy,
+      allowedAppPackageNames: [...(currentPolicy.allowedAppPackageNames || []), selectedAppToAdd],
+      blockedAppPackageNames: (currentPolicy.blockedAppPackageNames || []).filter((p) => p !== selectedAppToAdd),
+      updatedAt: new Date().toISOString()
+    };
+    await onUpdatePolicy(updated);
+    const appObj = applications.find((a) => a.packageName === selectedAppToAdd);
+    setSelectedAppToAdd('');
+    showFeedback(`Aplicativo "${appObj?.name || selectedAppToAdd}" liberado neste aparelho!`);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-[#141820] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-[#141820] border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-[#11141A] border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-[#11141A]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">{device.name}</h2>
+                <h3 className="text-base font-bold text-white tracking-tight">
+                  {device.model} ({device.brand})
+                </h3>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                     device.status === 'ATIVO'
-                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
                       : device.status === 'BLOQUEADO'
-                      ? 'bg-red-950/60 text-red-400 border-red-800/80'
-                      : 'bg-amber-950/60 text-amber-400 border-amber-800/80'
+                      ? 'bg-red-950 text-red-400 border border-red-800'
+                      : 'bg-amber-950 text-amber-400 border border-amber-800'
                   }`}
                 >
                   {device.status}
                 </span>
-                <span className="bg-blue-950 text-blue-400 border border-blue-800 text-[10px] px-2 py-0.5 rounded font-mono">
-                  {device.managementMode}
-                </span>
               </div>
-              <p className="text-xs text-slate-400">
-                {device.manufacturer} {device.model} • {device.androidVersion}
+              <p className="text-xs text-slate-400 font-mono">
+                Patrimônio: <strong className="text-slate-200">{device.assetTag || 'NÃO ATRIBUÍDO'}</strong> | IMEI: {device.imei}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Action feedback message */}
+        {actionSuccessMsg && (
+          <div className="bg-emerald-950/90 border-b border-emerald-800 px-4 py-2 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span>{actionSuccessMsg}</span>
+          </div>
+        )}
+
         {/* Tab Navigation */}
-        <div className="flex bg-[#0F1115] border-b border-slate-800 px-4 pt-2 gap-2 text-xs font-semibold overflow-x-auto">
+        <div className="flex border-b border-slate-800 px-4 sm:px-5 bg-[#11141A] gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab('info')}
-            className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 whitespace-nowrap transition ${
               activeTab === 'info'
-                ? 'border-blue-500 text-blue-400 font-bold'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Identificação & Hardware</span>
+            Informações Gerais
           </button>
-
           <button
             onClick={() => setActiveTab('policy')}
-            className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
               activeTab === 'policy'
-                ? 'border-blue-500 text-blue-400 font-bold'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Política Corporativa</span>
+            <span>Política & Roteamento</span>
           </button>
-
           <button
             onClick={() => setActiveTab('apps')}
-            className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
               activeTab === 'apps'
-                ? 'border-blue-500 text-blue-400 font-bold'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Package className="w-3.5 h-3.5" />
-            <span>Aplicativos Autorizados ({allowedApps.length})</span>
+            <span>Aplicativos ({allowedApps.length})</span>
           </button>
-
           <button
             onClick={() => setActiveTab('security')}
-            className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-3 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
               activeTab === 'security'
-                ? 'border-blue-500 text-blue-400 font-bold'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Ações & Bloqueio Remoto</span>
+            <span>Ações & Bloqueio</span>
           </button>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs text-slate-300">
-          {/* TAB 1: IDENTIFICAÇÃO E HARDWARE */}
+        {/* Tab Content Body */}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 custom-scrollbar space-y-4">
+          {/* TAB 1: INFORMAÇÕES */}
           {activeTab === 'info' && (
-            <div className="space-y-5">
-              {/* Section 1: Identificação */}
-              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-3">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-blue-400" />
-                  <span>Identificação do Aparelho</span>
-                </h3>
+            <div className="space-y-4">
+              {/* Vínculo de Colaborador */}
+              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-3">
+                  Colaborador Responsável e Setor
+                </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold">
+                      {currentEmployee?.name?.charAt(0) || <User className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">
+                        {currentEmployee ? currentEmployee.name : 'Nenhum colaborador atribuído'}
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        {currentEmployee ? `${currentEmployee.role} • Matrícula: ${currentEmployee.matricula}` : 'Aparelho em estoque'}
+                      </p>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Nome do Aparelho</span>
-                    <span className="text-white font-bold">{device.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Modelo & Fabricante</span>
-                    <span className="text-white">{device.manufacturer} {device.model}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Sistema Operacional</span>
-                    <span className="text-white font-mono">{device.androidVersion}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">IMEI</span>
-                    <span className="text-slate-200 font-mono text-[11px] select-all">{device.imei}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Número de Série</span>
-                    <span className="text-slate-200 font-mono text-[11px] select-all">{device.serialNumber}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Chip / Linha Corporativa</span>
-                    <span className="text-emerald-400 font-bold">{device.phoneNumber || 'Não informado'}</span>
-                  </div>
+                  {currentTeam && (
+                    <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs text-slate-200 font-semibold">{currentTeam.name}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Section 2: Associação com Colaborador */}
-              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-3">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-emerald-400" />
-                  <span>Colaborador Responsável</span>
-                </h3>
-
-                {currentEmployee ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Nome</span>
-                      <span className="text-white font-bold">{currentEmployee.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Matrícula</span>
-                      <span className="text-blue-400 font-mono font-bold">{currentEmployee.registrationNumber}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Equipe / Filial</span>
-                      <span className="text-slate-200">{currentEmployee.teamName}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Cargo</span>
-                      <span className="text-slate-200">{currentEmployee.jobTitle}</span>
-                    </div>
+              {/* Status de Roteamento Rápido */}
+              <div
+                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                  isRoutingBlocked
+                    ? 'bg-rose-950/30 border-rose-800/60 text-rose-300'
+                    : 'bg-amber-950/30 border-amber-800/60 text-amber-300'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isRoutingBlocked ? 'bg-rose-900/60 text-rose-400' : 'bg-amber-900/60 text-amber-400'
+                    }`}
+                  >
+                    {isRoutingBlocked ? <WifiOff className="w-4 h-4" /> : <Radio className="w-4 h-4" />}
                   </div>
-                ) : (
-                  <p className="text-slate-500 italic">Nenhum colaborador vinculado a este aparelho.</p>
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs block truncate">
+                      {isRoutingBlocked ? 'Roteamento Móvel (Hotspot / USB): BLOQUEADO' : 'Roteamento Móvel: LIBERADO'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block truncate">
+                      {isRoutingBlocked
+                        ? 'O colaborador não pode rotear a internet corporativa Multivale'
+                        : 'Atenção: O colaborador pode compartilhar a internet deste chip'}
+                    </span>
+                  </div>
+                </div>
+
+                {canManagePolicies && onUpdatePolicy && (
+                  <button
+                    type="button"
+                    onClick={handleToggleRouting}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                      isRoutingBlocked
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white shadow'
+                    }`}
+                  >
+                    {isRoutingBlocked ? 'Liberar Roteamento' : 'Bloquear Roteamento'}
+                  </button>
                 )}
               </div>
 
-              {/* Section 3: Telemetria Técnica Não-Invasiva */}
-              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-3">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <HardDrive className="w-4 h-4 text-indigo-400" />
-                  <span>Status Operacional & Bateria</span>
-                </h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Nível de Bateria</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Battery className="w-4 h-4 text-emerald-400" />
-                      <span className="text-white font-bold">{device.batteryLevel}%</span>
-                    </div>
+              {/* Telemetria e Hardware */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-[#11141A] p-3.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Bateria</span>
+                  <div className="flex items-center gap-2">
+                    <Battery className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-bold text-white">{device.batteryLevel}%</span>
                   </div>
+                </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Armazenamento</span>
-                    <span className="text-white font-bold">{device.storageUsedGb} GB / {device.storageTotalGb} GB</span>
+                <div className="bg-[#11141A] p-3.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Armazenamento</span>
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-bold text-white">{device.storageUsedGb}GB / {device.storageTotalGb}GB</span>
                   </div>
+                </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Última Sincronização</span>
-                    <span className="text-slate-300 font-mono text-[11px]">{formatDateTime(device.lastSync)}</span>
+                <div className="bg-[#11141A] p-3.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Versão Android</span>
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-purple-400" />
+                    <span className="text-sm font-bold text-white">v{device.osVersion}</span>
                   </div>
+                </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Modo de Gerenciamento</span>
-                    <span className="text-blue-400 font-bold">{device.managementMode}</span>
+                <div className="bg-[#11141A] p-3.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Último Sincronismo</span>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white">
+                      {new Date(device.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: POLÍTICA CORPORATIVA */}
+          {/* TAB 2: POLÍTICA & ROTEAMENTO */}
           {activeTab === 'policy' && (
             <div className="space-y-4">
-              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-3">
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Política Ativa no Dispositivo</span>
-                    <h3 className="text-sm font-bold text-white mt-0.5">
-                      {currentPolicy?.name || 'Nenhuma Política Vinculada'}
-                    </h3>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                      Perfil de Segurança Ativo
+                    </span>
+                    <h4 className="text-sm font-bold text-white">{currentPolicy?.name || 'Nenhuma política'}</h4>
                   </div>
 
                   {canManageDevices && (
                     <button
                       onClick={() => setIsChangingPolicy(!isChangingPolicy)}
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
+                      className="text-xs font-bold text-blue-400 hover:text-blue-300"
                     >
-                      {isChangingPolicy ? 'Cancelar' : 'Alterar Política'}
+                      {isChangingPolicy ? 'Cancelar Troca' : 'Alterar Política'}
                     </button>
                   )}
                 </div>
 
                 {isChangingPolicy ? (
-                  <form onSubmit={handleApplyPolicySubmit} className="bg-[#141820] p-4 rounded-xl border border-slate-700 space-y-3">
-                    <label className="block text-xs font-bold text-white">Selecione a Nova Política:</label>
+                  <form onSubmit={handleApplyPolicySubmit} className="space-y-3 pt-2 border-t border-slate-800">
+                    <label className="block text-xs font-bold text-slate-300">Selecione uma Nova Política:</label>
                     <select
                       value={selectedPolicyId}
                       onChange={(e) => setSelectedPolicyId(e.target.value)}
@@ -376,6 +445,36 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                       {currentPolicy?.description || 'Este dispositivo está sem uma política corporativa formal.'}
                     </p>
 
+                    {/* Destaque: Controle de Roteamento */}
+                    <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <WifiOff className="w-4 h-4 text-rose-400" />
+                        <div>
+                          <span className="font-bold text-white block">Controle de Roteamento (Hotspot / USB)</span>
+                          <span className="text-[10px] text-slate-400">
+                            Estado atual:{' '}
+                            <strong className={isRoutingBlocked ? 'text-rose-400' : 'text-emerald-400'}>
+                              {isRoutingBlocked ? 'BLOQUEADO' : 'LIBERADO'}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {canManagePolicies && onUpdatePolicy && (
+                        <button
+                          type="button"
+                          onClick={handleToggleRouting}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                            isRoutingBlocked
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                              : 'bg-rose-600 hover:bg-rose-500 text-white shadow'
+                          }`}
+                        >
+                          {isRoutingBlocked ? 'Liberar Roteador' : 'Bloquear Roteador'}
+                        </button>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-2 border-t border-slate-800">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -397,7 +496,33 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Reset de Fábrica Bloqueado: <strong>{currentPolicy?.blockFactoryReset ? 'SIM' : 'NÃO'}</strong></span>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Armazenamento Restrito: <strong>{currentPolicy?.blockExternalStorageAccess ? 'SIM' : 'NÃO'}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Notificações Bloqueadas: <strong>{currentPolicy?.blockStatusBarExpand ? 'SIM' : 'NÃO'}</strong></span>
+                      </div>
                     </div>
+
+                    {/* Pastas Liberadas no Celular */}
+                    {currentPolicy?.allowedFolders && currentPolicy.allowedFolders.length > 0 && (
+                      <div className="pt-3 border-t border-slate-800">
+                        <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                          <FolderCheck className="w-3.5 h-3.5" />
+                          <span>Pastas e Diretórios Liberados no Celular ({currentPolicy.allowedFolders.length})</span>
+                        </span>
+                        <div className="space-y-1 bg-[#141820] p-2.5 rounded-xl border border-slate-800">
+                          {currentPolicy.allowedFolders.map((fPath) => (
+                            <div key={fPath} className="flex items-center gap-2 font-mono text-[11px] text-amber-300">
+                              <Folder className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                              <span className="truncate">{fPath}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -406,17 +531,52 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
 
           {/* TAB 3: APLICATIVOS AUTORIZADOS */}
           {activeTab === 'apps' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">
-                  Aplicativos Autorizados na Política Atual ({allowedApps.length})
-                </span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Modo Estrito: Apenas os pacotes listados podem ser executados
-                </span>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    Aplicativos Liberados no Smartphone ({allowedApps.length})
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    O colaborador só poderá abrir estes aplicativos no aparelho.
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[350px] overflow-y-auto pr-1">
+              {/* Rápido: Adicionar aplicativo ao aparelho */}
+              {canManagePolicies && onUpdatePolicy && (
+                <div className="p-3 bg-[#11141A] rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-[11px] font-bold text-slate-300 block">
+                    Liberar Mais um Aplicativo para este Colaborador:
+                  </span>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedAppToAdd}
+                      onChange={(e) => setSelectedAppToAdd(e.target.value)}
+                      className="flex-1 bg-[#141820] border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="">Selecione um aplicativo do catálogo...</option>
+                      {blockedApps.map((app) => (
+                        <option key={app.id} value={app.packageName}>
+                          {app.name} ({app.packageName})
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      disabled={!selectedAppToAdd}
+                      onClick={handleAddApp}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Liberar no Celular</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
                 {allowedApps.map((app) => (
                   <div
                     key={app.id}
@@ -426,9 +586,23 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                       <h4 className="font-bold text-white text-xs truncate">{app.name}</h4>
                       <p className="text-[10px] font-mono text-blue-400 truncate">{app.packageName}</p>
                     </div>
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex-shrink-0">
-                      AUTORIZADO
-                    </span>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                        AUTORIZADO
+                      </span>
+
+                      {canManagePolicies && onUpdatePolicy && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveApp(app.packageName)}
+                          className="text-slate-500 hover:text-red-400 p-1 transition"
+                          title="Remover este app deste aparelho"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -443,7 +617,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                 <div>
                   <h4 className="font-bold text-white text-xs">Forçar Sincronização Imediata</h4>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Envia um sinal para o agente no smartphone atualizar as diretrizes de política corporativa.
+                    Envia um comando remoto para o smartphone atualizar as diretrizes de política corporativa.
                   </p>
                 </div>
 
@@ -463,6 +637,39 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                   <span>Dispositivo sincronizado com sucesso! Diretrizes atualizadas na nuvem Firestore.</span>
                 </div>
               )}
+
+              {/* Roteamento e Ponto de Acesso */}
+              <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-xs">Bloqueio de Roteamento de Internet (Hotspot)</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Bloqueie ou libere o compartilhamento do plano 4G/5G do chip corporativo deste aparelho.
+                  </p>
+                </div>
+
+                {canManagePolicies && onUpdatePolicy && (
+                  <button
+                    onClick={handleToggleRouting}
+                    className={`font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition shadow ${
+                      isRoutingBlocked
+                        ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white'
+                    }`}
+                  >
+                    {isRoutingBlocked ? (
+                      <>
+                        <Radio className="w-3.5 h-3.5" />
+                        <span>Liberar Roteamento</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-3.5 h-3.5" />
+                        <span>Bloquear Roteamento</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
 
               {/* Bloqueio / Desbloqueio */}
               <div className="bg-[#11141A] p-4 rounded-2xl border border-slate-800 space-y-3">
