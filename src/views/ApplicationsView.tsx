@@ -88,10 +88,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   ];
 
   const filteredApps = applications.filter((app) => {
+    if (!app) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
+    const appName = (app.name || '').toLowerCase();
+    const appPkg = (app.packageName || '').toLowerCase();
+    const appDesc = (app.description || '').toLowerCase();
+
     const matchesSearch =
-      app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.packageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.description.toLowerCase().includes(searchTerm.toLowerCase());
+      appName.includes(sTerm) ||
+      appPkg.includes(sTerm) ||
+      appDesc.includes(sTerm);
 
     const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
     const matchesCategory = categoryFilter === 'ALL' || app.category === categoryFilter;
@@ -161,8 +167,8 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const handleOpenPolicyAssignment = (app: Application) => {
     setAppForPolicyAssignment(app);
     // Verificar quais políticas atualmente contêm o pacote
-    const currentActivePolicies = policies
-      .filter((p) => p.allowedAppPackageNames.includes(app.packageName))
+    const currentActivePolicies = (policies || [])
+      .filter((p) => p && p.allowedAppPackageNames?.includes(app.packageName))
       .map((p) => p.id);
     setSelectedPolicyIdsForApp(currentActivePolicies);
   };
@@ -313,11 +319,11 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             </span>
             <span className="flex items-center gap-1 text-red-400 font-semibold">
               <XCircle className="w-3.5 h-3.5" />
-              {applications.filter((a) => a.status === 'BLOQUEADO').length} Bloqueados
+              {(applications || []).filter((a) => a && a.status === 'BLOQUEADO').length} Bloqueados
             </span>
           </div>
           <span className="text-slate-400">
-            Mostrando <strong className="text-white">{filteredApps.length}</strong> de {applications.length} aplicativos cadastrados
+            Mostrando <strong className="text-white">{(filteredApps || []).length}</strong> de {(applications || []).length} aplicativos cadastrados
           </span>
         </div>
       </div>
@@ -326,8 +332,8 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredApps.map((app) => {
           const isAllowed = app.status === 'AUTORIZADO';
-          const attachedPolicies = policies.filter((p) => p.allowedAppPackageNames.includes(app.packageName));
-          const isAttachedToAll = policies.length > 0 && attachedPolicies.length === policies.length;
+          const attachedPolicies = (policies || []).filter((p) => p && p.allowedAppPackageNames?.includes(app.packageName));
+          const isAttachedToAll = (policies || []).length > 0 && (attachedPolicies || []).length === (policies || []).length;
 
           return (
             <div
@@ -389,17 +395,17 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                       </span>
                       <span
                         className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
-                          attachedPolicies.length > 0
+                          (attachedPolicies || []).length > 0
                             ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                             : 'bg-amber-950 text-amber-300 border border-amber-800'
                         }`}
                       >
-                        {attachedPolicies.length} de {policies.length} políticas
+                        {(attachedPolicies || []).length} de {(policies || []).length} políticas
                       </span>
                     </div>
 
                     <div className="flex flex-wrap gap-1 pt-1">
-                      {attachedPolicies.map((pol) => (
+                      {(attachedPolicies || []).map((pol) => (
                         <span
                           key={pol.id}
                           className="bg-slate-800 text-slate-300 text-[9px] px-1.5 py-0.5 rounded font-medium border border-slate-700 truncate max-w-[140px]"
@@ -408,7 +414,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                           {pol.name}
                         </span>
                       ))}
-                      {attachedPolicies.length === 0 && (
+                      {(attachedPolicies || []).length === 0 && (
                         <span className="text-amber-400/80 text-[10px] italic">
                           Não atribuído a nenhuma política. Os colaboradores não verão este app.
                         </span>

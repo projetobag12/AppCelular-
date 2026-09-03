@@ -36,10 +36,12 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState('PENDING'); // Padrão focado em pendentes
 
   const filteredAlerts = alerts.filter((alt) => {
+    if (!alt) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      alt.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (alt.deviceName && alt.deviceName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (alt.employeeName && alt.employeeName.toLowerCase().includes(searchTerm.toLowerCase()));
+      (alt.message || '').toLowerCase().includes(sTerm) ||
+      (alt.deviceName ? alt.deviceName.toLowerCase().includes(sTerm) : false) ||
+      (alt.employeeName ? alt.employeeName.toLowerCase().includes(sTerm) : false);
 
     const matchesSeverity = severityFilter === 'ALL' || alt.severity === severityFilter;
     const matchesStatus =
@@ -140,7 +142,7 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
 
       {/* Alerts List */}
       <div className="space-y-3">
-        {filteredAlerts.length === 0 ? (
+        {(filteredAlerts || []).length === 0 ? (
           <div className="bg-[#141820] border border-slate-800 rounded-2xl p-12 text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-80" />
             <h3 className="text-base font-bold text-white">Nenhum Alerta Encontrado</h3>
@@ -149,8 +151,8 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
             </p>
           </div>
         ) : (
-          filteredAlerts.map((alert) => {
-            const dev = devices.find((d) => d.id === alert.deviceId);
+          (filteredAlerts || []).map((alert) => {
+            const dev = (devices || []).find((d) => d && d.id === alert.deviceId);
             return (
               <div
                 key={alert.id}

@@ -25,6 +25,7 @@ import {
   Folder,
   WifiOff,
   Radio,
+  Usb,
   Plus,
   Trash2
 } from 'lucide-react';
@@ -80,17 +81,19 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
   const currentTeam = teams.find((t) => t.id === device.teamId);
 
   // Apps permitidos pela política ativa
-  const allowedApps = applications.filter((app) =>
-    currentPolicy?.allowedAppPackageNames?.includes(app.packageName)
+  const allowedApps = (applications || []).filter((app) =>
+    app && currentPolicy?.allowedAppPackageNames?.includes(app.packageName)
   );
 
-  const blockedApps = applications.filter(
-    (app) => !currentPolicy?.allowedAppPackageNames?.includes(app.packageName)
+  const blockedApps = (applications || []).filter(
+    (app) => app && !currentPolicy?.allowedAppPackageNames?.includes(app.packageName)
   );
 
   const isRoutingBlocked = Boolean(
     currentPolicy?.blockHotspot || currentPolicy?.blockUsbTethering || currentPolicy?.blockBluetoothTethering
   );
+
+  const isUsbOtgAllowed = currentPolicy ? (currentPolicy.allowUsbOtgStorage ?? true) : true;
 
   const showFeedback = (msg: string) => {
     setActionSuccessMsg(msg);
@@ -144,6 +147,23 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
     );
   };
 
+  // Gerenciamento Rápido da Entrada USB Tipo-C para Pendrive OTG & WhatsApp
+  const handleToggleUsbOtg = async () => {
+    if (!currentPolicy || !onUpdatePolicy) return;
+    const shouldAllow = !isUsbOtgAllowed;
+    const updated: Policy = {
+      ...currentPolicy,
+      allowUsbOtgStorage: shouldAllow,
+      updatedAt: new Date().toISOString()
+    };
+    await onUpdatePolicy(updated);
+    showFeedback(
+      shouldAllow
+        ? 'Entrada USB Tipo-C LIBERADA para Pendrive OTG & WhatsApp!'
+        : 'Entrada USB Tipo-C BLOQUEADA para Pendrive OTG.'
+    );
+  };
+
   // Remover App do Aparelho
   const handleRemoveApp = async (pkg: string) => {
     if (!currentPolicy || !onUpdatePolicy) return;
@@ -187,7 +207,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white tracking-tight">
-                  {device.model} ({device.brand})
+                  {device.model} ({device.manufacturer || 'Multivale'})
                 </h3>
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded ${
@@ -202,7 +222,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono">
-                Patrimônio: <strong className="text-slate-200">{device.assetTag || 'NÃO ATRIBUÍDO'}</strong> | IMEI: {device.imei}
+                Série: <strong className="text-slate-200">{device.serialNumber || 'N/A'}</strong> | IMEI: {device.imei}
               </p>
             </div>
           </div>
@@ -255,7 +275,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
             }`}
           >
             <Package className="w-3.5 h-3.5" />
-            <span>Aplicativos ({allowedApps.length})</span>
+            <span>Aplicativos ({(allowedApps || []).length})</span>
           </button>
           <button
             onClick={() => setActiveTab('security')}
@@ -290,7 +310,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                         {currentEmployee ? currentEmployee.name : 'Nenhum colaborador atribuído'}
                       </h4>
                       <p className="text-xs text-slate-400">
-                        {currentEmployee ? `${currentEmployee.role} • Matrícula: ${currentEmployee.matricula}` : 'Aparelho em estoque'}
+                        {currentEmployee ? `${currentEmployee.jobTitle} • Matrícula: ${currentEmployee.registrationNumber}` : 'Aparelho em estoque'}
                       </p>
                     </div>
                   </div>
@@ -347,6 +367,49 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                 )}
               </div>
 
+              {/* Status de Entrada USB Tipo-C / Pendrive OTG & WhatsApp */}
+              <div
+                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                  isUsbOtgAllowed
+                    ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-300'
+                    : 'bg-rose-950/30 border-rose-800/60 text-rose-300'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isUsbOtgAllowed ? 'bg-emerald-900/60 text-emerald-400' : 'bg-rose-900/60 text-rose-400'
+                    }`}
+                  >
+                    <Usb className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs block truncate">
+                      {isUsbOtgAllowed ? 'Entrada Tipo-C & Pendrive OTG: LIBERADO' : 'Entrada Tipo-C (Pendrive OTG): BLOQUEADO'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block truncate">
+                      {isUsbOtgAllowed
+                        ? 'Permite conectar pendrive Tipo-C para passar arquivos e enviar via WhatsApp'
+                        : 'Porta USB-C restrita a apenas carregamento de bateria'}
+                    </span>
+                  </div>
+                </div>
+
+                {canManagePolicies && onUpdatePolicy && (
+                  <button
+                    type="button"
+                    onClick={handleToggleUsbOtg}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                      isUsbOtgAllowed
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow'
+                    }`}
+                  >
+                    {isUsbOtgAllowed ? 'Bloquear Entrada' : 'Liberar Tipo-C'}
+                  </button>
+                )}
+              </div>
+
               {/* Telemetria e Hardware */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-[#11141A] p-3.5 rounded-xl border border-slate-800">
@@ -369,7 +432,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                   <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Versão Android</span>
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-purple-400" />
-                    <span className="text-sm font-bold text-white">v{device.osVersion}</span>
+                    <span className="text-sm font-bold text-white">v{device.androidVersion || '14'}</span>
                   </div>
                 </div>
 
@@ -416,9 +479,9 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                       onChange={(e) => setSelectedPolicyId(e.target.value)}
                       className="w-full bg-[#11141A] border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-blue-500"
                     >
-                      {policies.map((p) => (
+                      {(policies || []).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} ({p.securityModel} - {p.allowedAppPackageNames.length} apps autorizados)
+                          {p.name} ({p.securityModel} - {(p.allowedAppPackageNames || []).length} apps autorizados)
                         </option>
                       ))}
                     </select>
@@ -475,10 +538,44 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                       )}
                     </div>
 
+                    {/* Destaque: Entrada USB Tipo-C / Pendrive OTG & WhatsApp */}
+                    <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Usb className="w-4 h-4 text-emerald-400" />
+                        <div>
+                          <span className="font-bold text-white block">Entrada Tipo-C & Pendrive OTG (Arquivos & WhatsApp)</span>
+                          <span className="text-[10px] text-slate-400">
+                            Estado atual:{' '}
+                            <strong className={isUsbOtgAllowed ? 'text-emerald-400' : 'text-rose-400'}>
+                              {isUsbOtgAllowed ? 'LIBERADO' : 'BLOQUEADO'}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {canManagePolicies && onUpdatePolicy && (
+                        <button
+                          type="button"
+                          onClick={handleToggleUsbOtg}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                            isUsbOtgAllowed
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow'
+                          }`}
+                        >
+                          {isUsbOtgAllowed ? 'Bloquear Entrada' : 'Liberar Tipo-C'}
+                        </button>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-2 border-t border-slate-800">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Modelo: <strong>{currentPolicy?.securityModel || 'ALLOWLIST'}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Pendrive Tipo-C (OTG): <strong>{isUsbOtgAllowed ? 'LIBERADO' : 'BLOQUEADO'}</strong></span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -507,14 +604,14 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
                     </div>
 
                     {/* Pastas Liberadas no Celular */}
-                    {currentPolicy?.allowedFolders && currentPolicy.allowedFolders.length > 0 && (
+                    {(currentPolicy?.allowedFolders || []).length > 0 && (
                       <div className="pt-3 border-t border-slate-800">
                         <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
                           <FolderCheck className="w-3.5 h-3.5" />
-                          <span>Pastas e Diretórios Liberados no Celular ({currentPolicy.allowedFolders.length})</span>
+                          <span>Pastas e Diretórios Liberados no Celular ({(currentPolicy?.allowedFolders || []).length})</span>
                         </span>
                         <div className="space-y-1 bg-[#141820] p-2.5 rounded-xl border border-slate-800">
-                          {currentPolicy.allowedFolders.map((fPath) => (
+                          {(currentPolicy?.allowedFolders || []).map((fPath) => (
                             <div key={fPath} className="flex items-center gap-2 font-mono text-[11px] text-amber-300">
                               <Folder className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                               <span className="truncate">{fPath}</span>
@@ -535,7 +632,7 @@ export const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <span className="text-xs font-bold text-white block">
-                    Aplicativos Liberados no Smartphone ({allowedApps.length})
+                    Aplicativos Liberados no Smartphone ({(allowedApps || []).length})
                   </span>
                   <span className="text-[11px] text-slate-400">
                     O colaborador só poderá abrir estes aplicativos no aparelho.

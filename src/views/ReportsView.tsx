@@ -91,31 +91,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       e.email,
       e.phone,
       e.status,
-      devices.filter((d) => d.employeeId === e.id).length
+      (devices || []).filter((d) => d && d.employeeId === e.id).length
     ]);
     exportToCsv('relatorio_funcionarios', headers, rows);
   };
 
   const handleExportTeams = () => {
     const headers = ['ID', 'Nome Equipe', 'Região', 'Membros', 'Aparelhos', 'Política Padrão'];
-    const rows = teams.map((t) => [
+    const rows = (teams || []).map((t) => [
       t.id,
       t.name,
       t.region,
-      employees.filter((e) => e.teamId === t.id).length || t.memberCount,
-      devices.filter((d) => d.teamId === t.id).length || t.deviceCount,
-      policies.find((p) => p.id === t.defaultPolicyId)?.name || 'Padrão'
+      (employees || []).filter((e) => e && e.teamId === t.id).length || t.memberCount || 0,
+      (devices || []).filter((d) => d && d.teamId === t.id).length || t.deviceCount || 0,
+      (policies || []).find((p) => p && p.id === t.defaultPolicyId)?.name || 'Padrão'
     ]);
     exportToCsv('relatorio_equipes', headers, rows);
   };
 
   const handleExportPolicies = () => {
     const headers = ['ID', 'Nome Política', 'Modelo Segurança', 'Qtd Apps Autorizados', 'Play Store Bloqueada', 'USB Bloqueado', 'Status'];
-    const rows = policies.map((p) => [
+    const rows = (policies || []).map((p) => [
       p.id,
       p.name,
       p.securityModel,
-      p.allowedAppPackageNames.length,
+      (p.allowedAppPackageNames || []).length,
       p.blockPlayStore ? 'SIM' : 'NÃO',
       p.blockUsbData ? 'SIM' : 'NÃO',
       p.status
@@ -169,13 +169,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   const reportTabs = [
-    { id: 'devices', label: 'Dispositivos', icon: Smartphone, count: devices.length, action: handleExportDevices },
-    { id: 'employees', label: 'Funcionários', icon: Users, count: employees.length, action: handleExportEmployees },
-    { id: 'teams', label: 'Equipes Regionais', icon: Building2, count: teams.length, action: handleExportTeams },
-    { id: 'policies', label: 'Políticas', icon: ShieldCheck, count: policies.length, action: handleExportPolicies },
-    { id: 'applications', label: 'Aplicativos', icon: Grid, count: applications.length, action: handleExportApplications },
-    { id: 'events', label: 'Auditoria & Logs', icon: History, count: events.length, action: handleExportEvents },
-    { id: 'problems', label: 'Dispositivos c/ Problemas', icon: AlertTriangle, count: devices.filter((d) => d.status !== 'ATIVO').length, action: handleExportProblemDevices },
+    { id: 'devices', label: 'Dispositivos', icon: Smartphone, count: (devices || []).length, action: handleExportDevices },
+    { id: 'employees', label: 'Funcionários', icon: Users, count: (employees || []).length, action: handleExportEmployees },
+    { id: 'teams', label: 'Equipes Regionais', icon: Building2, count: (teams || []).length, action: handleExportTeams },
+    { id: 'policies', label: 'Políticas', icon: ShieldCheck, count: (policies || []).length, action: handleExportPolicies },
+    { id: 'applications', label: 'Aplicativos', icon: Grid, count: (applications || []).length, action: handleExportApplications },
+    { id: 'events', label: 'Auditoria & Logs', icon: History, count: (events || []).length, action: handleExportEvents },
+    { id: 'problems', label: 'Dispositivos c/ Problemas', icon: AlertTriangle, count: (devices || []).filter((d) => d && d.status !== 'ATIVO').length, action: handleExportProblemDevices },
   ];
 
   return (

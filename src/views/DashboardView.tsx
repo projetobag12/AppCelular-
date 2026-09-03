@@ -54,18 +54,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenEnrollmentModal
 }) => {
   // Cálculos de Métricas
-  const totalDevices = devices.length;
-  const activeDevices = devices.filter((d) => d.status === 'ATIVO').length;
-  const managedDevices = devices.filter((d) => d.managementMode === 'DEVICE_OWNER').length;
-  const pendingDevices = devices.filter((d) => d.status === 'PENDENTE' || d.managementMode === 'UNMANAGED').length;
-  const offlineDevices = devices.filter((d) => d.status === 'OFFLINE').length;
-  const lockedDevices = devices.filter((d) => d.status === 'BLOQUEADO').length;
+  const totalDevices = (devices || []).length;
+  const activeDevices = (devices || []).filter((d) => d && d.status === 'ATIVO').length;
+  const managedDevices = (devices || []).filter((d) => d && d.managementMode === 'DEVICE_OWNER').length;
+  const pendingDevices = (devices || []).filter((d) => d && (d.status === 'PENDENTE' || d.managementMode === 'UNMANAGED')).length;
+  const offlineDevices = (devices || []).filter((d) => d && d.status === 'OFFLINE').length;
+  const lockedDevices = (devices || []).filter((d) => d && d.status === 'BLOQUEADO').length;
 
-  const totalEmployees = employees.length;
-  const authorizedAppsCount = applications.filter((a) => a.status === 'AUTORIZADO').length;
-  const blockedAppsCount = applications.filter((a) => a.status === 'BLOQUEADO').length;
-  const activePoliciesCount = policies.filter((p) => p.status === 'ATIVO').length;
-  const unresolvedAlerts = alerts.filter((a) => !a.resolved);
+  const totalEmployees = (employees || []).length;
+  const authorizedAppsCount = (applications || []).filter((a) => a && a.status === 'AUTORIZADO').length;
+  const blockedAppsCount = (applications || []).filter((a) => a && a.status === 'BLOQUEADO').length;
+  const activePoliciesCount = (policies || []).filter((p) => p && p.status === 'ATIVO').length;
+  const unresolvedAlerts = (alerts || []).filter((a) => a && !a.resolved);
 
   const getStatusBadge = (status: Device['status']) => {
     switch (status) {
@@ -252,7 +252,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-red-400">{unresolvedAlerts.length}</span>
+            <span className="text-2xl font-black text-red-400">{(unresolvedAlerts || []).length}</span>
             <span className="text-[10px] text-red-400 font-semibold">Pendentes</span>
           </div>
         </div>
@@ -396,10 +396,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="p-3 space-y-2.5">
-              {alerts.length === 0 ? (
+              {(alerts || []).length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-4">Nenhum alerta registrado no momento.</p>
               ) : (
-                alerts.slice(0, 3).map((alert) => (
+                (alerts || []).slice(0, 3).map((alert) => (
                   <div
                     key={alert.id}
                     className={`p-3 rounded-xl border text-xs ${

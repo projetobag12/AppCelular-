@@ -28,7 +28,12 @@ import {
   ArrowLeft,
   Info,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Usb,
+  Share2,
+  HardDrive,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Device, Policy, Application, Employee } from '../types';
 import { GestorLoginModal } from '../components/GestorLoginModal';
@@ -59,9 +64,9 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
     currentDeviceId || devices[0]?.id || 'dev-001'
   );
 
-  const currentDevice = devices.find((d) => d.id === selectedDeviceId) || devices[0];
-  const currentPolicy = policies.find((p) => p.id === currentDevice?.policyId) || policies[0];
-  const currentEmployee = employees.find((e) => e.id === currentDevice?.employeeId);
+  const currentDevice = (devices || []).find((d) => d?.id === selectedDeviceId) || devices?.[0];
+  const currentPolicy = (policies || []).find((p) => p?.id === currentDevice?.policyId) || policies?.[0];
+  const currentEmployee = (employees || []).find((e) => e?.id === currentDevice?.employeeId);
 
   // Estados de navegação interna do Kiosk
   const [activeTab, setActiveTab] = useState<'apps' | 'folders' | 'device' | 'sos'>('apps');
@@ -105,7 +110,8 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
   }, []);
 
   // Apps permitidos pela política
-  const allowedApps = applications.filter((app) => {
+  const allowedApps = (applications || []).filter((app) => {
+    if (!app) return false;
     if (!currentPolicy) return true;
     return currentPolicy.allowedAppPackageNames?.includes(app.packageName);
   });
@@ -117,8 +123,83 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
     '/storage/emulated/0/Download/Corporativo'
   ];
 
-  // Arquivos simulados por pasta
-  const mockFolderFiles: Record<string, Array<{ name: string; size: string; type: string; date: string; content: string }>> = {
+  // Permissão da entrada Tipo-C / Pendrive OTG na política atual
+  const isUsbOtgAllowed = currentPolicy ? (currentPolicy.allowUsbOtgStorage ?? true) : true;
+  const [isOtgConnected, setIsOtgConnected] = useState(true);
+
+  // Arquivos dentro do Pendrive USB Tipo-C (OTG)
+  const [otgFiles, setOtgFiles] = useState<Array<{ id: string; name: string; size: string; type: string; date: string; content: string }>>([
+    {
+      id: 'otg-1',
+      name: 'OS_Campo_Instalacao_Cliente_9941.pdf',
+      size: '840 KB',
+      type: 'PDF',
+      date: 'Hoje, 08:30',
+      content: 'Ordem de Serviço #9941 com assinatura de aceite do cliente titular, dados de instalação FTTH na CTO-04 porta 6 e níveis ópticos (-18.7 dBm).'
+    },
+    {
+      id: 'otg-2',
+      name: 'Relatorio_Afericao_OTDR_Caixa_04.xlsx',
+      size: '1.2 MB',
+      type: 'Planilha',
+      date: 'Hoje, 09:10',
+      content: 'Curvas de atenuação óptica por quilômetro aferidas pelo refletômetro óptico (OTDR) no trecho Cascavel Leste.'
+    },
+    {
+      id: 'otg-3',
+      name: 'Fotos_Vistoria_Poste_Avenida_Brasil.zip',
+      size: '18.4 MB',
+      type: 'Compactado',
+      date: 'Hoje, 09:45',
+      content: 'Pacote com 12 fotos em alta resolução da fixação do drop, ancoragens e suporte BAP no poste da concessionária Copel.'
+    },
+    {
+      id: 'otg-4',
+      name: 'Projeto_AsBuilt_FTTH_Cascavel_Leste.dwg',
+      size: '4.8 MB',
+      type: 'CAD / DWG',
+      date: 'Ontem, 16:30',
+      content: 'Diagrama unifilar com rota de cabos ópticos, caixas de emenda CEO e posicionamento de splitters 1:8 e 1:16.'
+    }
+  ]);
+
+  // Mensagens do WhatsApp Corporativo
+  const [whatsAppMessages, setWhatsAppMessages] = useState<Array<{ id: string; sender: string; text: string; time: string; fileAttachment?: { name: string; size: string; type: string; fromOtg?: boolean } }>>([
+    {
+      id: 'wa-1',
+      sender: 'Supervisão de Operações Multivale',
+      text: 'Bom dia equipe! Ao finalizar as ordens de serviço ou leituras de OTDR no pendrive, enviem aqui no grupo para validação.',
+      time: '08:00'
+    },
+    {
+      id: 'wa-2',
+      sender: 'Central de NOC & Suporte',
+      text: 'Link do cliente Supermercado Paraná liberado no concentrador BNG. Aguardando foto da CTO e medição óptica.',
+      time: '08:45'
+    }
+  ]);
+
+  // Modal de Compartilhamento Direto para o WhatsApp
+  const [sharingToWhatsAppFile, setSharingToWhatsAppFile] = useState<{
+    name: string;
+    size: string;
+    type: string;
+    content?: string;
+    fromOtg?: boolean;
+  } | null>(null);
+  const [selectedWhatsAppTarget, setSelectedWhatsAppTarget] = useState('Central de NOC & Suporte (+55 41 3099-8800)');
+  const [whatsAppCustomNote, setWhatsAppCustomNote] = useState('');
+
+  // Toast de feedback
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showKioskToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Arquivos simulados por pasta (Estado dinâmico)
+  const [folderFiles, setFolderFiles] = useState<Record<string, Array<{ name: string; size: string; type: string; date: string; content: string }>>>({
     '/storage/emulated/0/MultivaleDocumentos': [
       {
         name: 'Manual_Padrao_Instalacao_FTTH_2026.pdf',
@@ -181,6 +262,75 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
         content: 'Ramais e contatos de rádio direto com o NOC Curitiba e Supervisão Regional Oeste.'
       }
     ]
+  });
+
+  // Copiar arquivo do Pendrive OTG para a Memória do Celular
+  const handleCopyOtgToPhone = (file: { name: string; size: string; type: string; date: string; content: string }) => {
+    const targetFolder = '/storage/emulated/0/MultivaleDocumentos';
+    setFolderFiles((prev) => {
+      const existing = prev[targetFolder] || [];
+      if (existing.some((f) => f.name === file.name)) {
+        showKioskToast(`O arquivo "${file.name}" já está na pasta corporativa.`);
+        return prev;
+      }
+      return {
+        ...prev,
+        [targetFolder]: [{ ...file, date: 'Agora (via OTG)' }, ...existing]
+      };
+    });
+    showKioskToast(`Arquivo "${file.name}" copiado com sucesso para /MultivaleDocumentos!`);
+  };
+
+  // Copiar arquivo do Celular para o Pendrive Tipo-C
+  const handleCopyPhoneToOtg = (file: { name: string; size: string; type: string; date: string; content: string }) => {
+    if (!isUsbOtgAllowed) {
+      showKioskToast('A entrada Tipo-C está bloqueada para pendrives pela política do Gestor.');
+      return;
+    }
+    if (!isOtgConnected) {
+      showKioskToast('Conecte o pendrive USB Tipo-C para transferir o arquivo.');
+      return;
+    }
+    setOtgFiles((prev) => {
+      if (prev.some((f) => f.name === file.name)) {
+        showKioskToast(`O arquivo "${file.name}" já existe no pendrive Tipo-C.`);
+        return prev;
+      }
+      return [
+        {
+          id: `otg-${Date.now()}`,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          date: 'Agora (do Celular)',
+          content: file.content || 'Arquivo transferido da pasta corporativa do celular.'
+        },
+        ...prev
+      ];
+    });
+    showKioskToast(`Arquivo "${file.name}" transferido com sucesso para o Pendrive Tipo-C!`);
+  };
+
+  // Enviar arquivo para o WhatsApp
+  const handleSendFileToWhatsApp = () => {
+    if (!sharingToWhatsAppFile) return;
+    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const newMsg = {
+      id: `wa-${Date.now()}`,
+      sender: currentEmployee ? currentEmployee.name : 'Técnico de Campo',
+      text: whatsAppCustomNote || `Segue em anexo o arquivo "${sharingToWhatsAppFile.name}" extraído via ${sharingToWhatsAppFile.fromOtg ? 'Pendrive USB Tipo-C (OTG)' : 'pasta corporativa'} para validação da OS.`,
+      time: nowTime,
+      fileAttachment: {
+        name: sharingToWhatsAppFile.name,
+        size: sharingToWhatsAppFile.size,
+        type: sharingToWhatsAppFile.type,
+        fromOtg: sharingToWhatsAppFile.fromOtg
+      }
+    };
+    setWhatsAppMessages((prev) => [...prev, newMsg]);
+    showKioskToast(`Arquivo "${sharingToWhatsAppFile.name}" enviado com sucesso via WhatsApp Corporativo para ${selectedWhatsAppTarget}!`);
+    setSharingToWhatsAppFile(null);
+    setWhatsAppCustomNote('');
   };
 
   // Disparo de chamado SOS
@@ -284,13 +434,13 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                 <span className="font-semibold truncate">Política: {currentPolicy?.name || 'Operacional Campo'}</span>
               </div>
               <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full flex-shrink-0">
-                {allowedApps.length} Apps Liberados
+                {(allowedApps || []).length} Apps Liberados
               </span>
             </div>
           </div>
 
           {/* Seletor de Aparelho (Útil para testes no sistema) */}
-          {devices.length > 1 && (
+          {(devices || []).length > 1 && (
             <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-xl px-3 py-1.5 text-xs">
               <span className="text-slate-400 text-[11px]">Alternar Celular de Teste:</span>
               <select
@@ -384,18 +534,21 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                   </p>
                 </div>
                 <span className="text-xs font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 px-2 py-0.5 rounded-lg">
-                  {allowedApps.length} Homologados
+                  {(allowedApps || []).length} Homologados
                 </span>
               </div>
 
               {/* Grade de Aplicativos em Tamanho Confortável para Dedo */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {allowedApps.map((app) => {
-                  const isWhats = app.name.toLowerCase().includes('whats');
-                  const isMaps = app.name.toLowerCase().includes('maps') || app.name.toLowerCase().includes('waze') || app.name.toLowerCase().includes('rotas');
-                  const isPhone = app.name.toLowerCase().includes('telef') || app.name.toLowerCase().includes('chamad');
-                  const isCamera = app.name.toLowerCase().includes('camer') || app.name.toLowerCase().includes('foto');
-                  const isCalc = app.name.toLowerCase().includes('calc');
+                  const appName = app?.name || app?.packageName || 'Aplicativo';
+                  const nameLower = (app?.name || '').toLowerCase();
+                  const pkgLower = (app?.packageName || '').toLowerCase();
+                  const isWhats = nameLower.includes('whats') || pkgLower.includes('whatsapp');
+                  const isMaps = nameLower.includes('maps') || nameLower.includes('waze') || nameLower.includes('rotas') || pkgLower.includes('maps');
+                  const isPhone = nameLower.includes('telef') || nameLower.includes('chamad') || pkgLower.includes('dialer');
+                  const isCamera = nameLower.includes('camer') || nameLower.includes('foto') || pkgLower.includes('camera');
+                  const isCalc = nameLower.includes('calc') || pkgLower.includes('calc');
 
                   return (
                     <button
@@ -435,7 +588,7 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
 
                       <div className="w-full">
                         <span className="text-xs sm:text-sm font-bold text-white block truncate leading-tight group-hover:text-blue-300">
-                          {app.name}
+                          {app.name || app.packageName || 'Aplicativo'}
                         </span>
                         <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded-full inline-block mt-1 font-mono">
                           Liberado
@@ -493,10 +646,173 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
           {/* ----------------------------------------------------------------------- */}
           {activeTab === 'folders' && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Card Específico: ENTRADA USB TIPO-C & PENDRIVE OTG */}
+              {isUsbOtgAllowed ? (
+                <div className="bg-emerald-950/30 border border-emerald-800/70 rounded-2xl p-4 space-y-3 shadow-lg shadow-emerald-950/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-900/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                        <Usb className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-white">
+                            Entrada USB Tipo-C: Pendrive OTG
+                          </h3>
+                          <span className="text-[10px] font-bold bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-700 font-mono">
+                            LIBERADO
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-emerald-300/80 block">
+                          SanDisk Ultra Dual Drive USB-C (64 GB) • FAT32
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextState = !isOtgConnected;
+                          setIsOtgConnected(nextState);
+                          showKioskToast(
+                            nextState
+                              ? 'Pendrive USB Tipo-C conectado com sucesso!'
+                              : 'Pendrive USB Tipo-C ejetado com segurança.'
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                          isOtgConnected
+                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow'
+                        }`}
+                      >
+                        <Usb className="w-3.5 h-3.5" />
+                        <span>{isOtgConnected ? 'Ejetar com Segurança' : 'Conectar Pendrive'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {isOtgConnected ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-300">
+                        <span className="font-bold flex items-center gap-1 text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Arquivos no Pendrive Tipo-C ({(otgFiles || []).length})</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Passe para o celular ou envie direto p/ WhatsApp
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {otgFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
+                          >
+                            <div
+                              onClick={() => setViewingFile(file)}
+                              className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/80 flex items-center justify-center flex-shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-white font-bold text-xs truncate block hover:text-emerald-300">
+                                  {file.name}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {file.date} • {file.size} • {file.type}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+                              {/* Botão Principal: Enviar Direto para o WhatsApp */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSharingToWhatsAppFile({ ...file, fromOtg: true });
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                                title="Enviar este arquivo do pendrive para o WhatsApp"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>Enviar p/ WhatsApp</span>
+                              </button>
+
+                              {/* Botão: Copiar para o Celular */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyOtgToPhone(file)}
+                                className="bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-semibold"
+                                title="Copiar arquivo para a memória corporativa do smartphone"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Salvar no Celular</span>
+                              </button>
+
+                              {/* Visualizar */}
+                              <button
+                                type="button"
+                                onClick={() => setViewingFile(file)}
+                                className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition"
+                                title="Visualizar"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-center space-y-2">
+                      <Usb className="w-8 h-8 text-slate-500 mx-auto" />
+                      <span className="text-xs font-bold text-slate-300 block">Nenhum pendrive Tipo-C conectado</span>
+                      <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        Espete um pendrive USB Tipo-C na entrada do celular para ler medições, relatórios e fotos de campo.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOtgConnected(true);
+                          showKioskToast('Pendrive USB Tipo-C conectado!');
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"
+                      >
+                        Simular Conexão de Pendrive Tipo-C
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-rose-950/30 border border-rose-800/60 rounded-2xl p-4 text-rose-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-rose-900/40 text-rose-400 flex items-center justify-center">
+                        <Usb className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-white">Entrada USB Tipo-C: Bloqueada pelo Gestor</h4>
+                        <span className="text-[10px] text-rose-400 font-mono">Restrição de Segurança Android Enterprise</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold bg-rose-900 text-rose-300 px-2 py-0.5 rounded-full border border-rose-700">
+                      BLOQUEADO
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-rose-900/40">
+                    A leitura e transferência de arquivos via pendrive OTG na porta Tipo-C está <strong className="text-rose-400">bloqueada</strong> pela política corporativa. A porta Tipo-C aceita somente carregador de bateria.
+                  </p>
+                </div>
+              )}
+
               <div className="bg-amber-950/20 border border-amber-800/50 rounded-2xl p-3.5 text-xs text-amber-200 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-amber-300">
                   <FolderLock className="w-4 h-4" />
-                  <span>Armazenamento Corporativo Restrito</span>
+                  <span>Pastas Oficiais na Memória do Celular</span>
                 </div>
                 <p className="text-slate-300 text-[11px] leading-relaxed">
                   O colaborador tem acesso somente às pastas oficiais de trabalho abaixo. Todas as outras pastas da memória interna, fotos pessoais e downloads gerais estão protegidas e bloqueadas.
@@ -507,15 +823,7 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
               <div className="space-y-3">
                 {allowedFolders.map((folderPath) => {
                   const folderName = folderPath.split('/').filter(Boolean).pop() || folderPath;
-                  const files = mockFolderFiles[folderPath] || [
-                    {
-                      name: 'Documento_Instalacao_Campo.pdf',
-                      size: '1.4 MB',
-                      type: 'PDF',
-                      date: 'Hoje',
-                      content: 'Documento técnico de conformidade de instalação.'
-                    }
-                  ];
+                  const files = folderFiles[folderPath] || [];
 
                   return (
                     <div
@@ -538,35 +846,65 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                         </div>
 
                         <span className="text-xs text-amber-300 font-semibold bg-amber-950/70 border border-amber-800/70 px-2.5 py-1 rounded-lg font-mono flex-shrink-0">
-                          {files.length} arquivos
+                          {(files || []).length} arquivos
                         </span>
                       </div>
 
                       {/* Lista de Arquivos da Pasta */}
-                      <div className="space-y-1.5 pt-1 border-t border-slate-800/90">
+                      <div className="space-y-2 pt-1 border-t border-slate-800/90">
                         {files.map((file, idx) => (
                           <div
                             key={idx}
-                            onClick={() => setViewingFile(file)}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800/90 cursor-pointer transition text-xs group active:scale-[0.99]"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800/90 transition text-xs group gap-2"
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              onClick={() => setViewingFile(file)}
+                              className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+                            >
                               <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
                               <div className="min-w-0">
                                 <span className="text-slate-200 group-hover:text-blue-300 font-medium truncate block text-xs sm:text-sm">
                                   {file.name}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-mono">
-                                  {file.date} • {file.type}
+                                  {file.date} • {file.type} • {file.size}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 flex-shrink-0 text-xs text-slate-300 font-mono">
-                              <span>{file.size}</span>
-                              <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition">
+                            <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+                              {/* Enviar Direto para o WhatsApp */}
+                              <button
+                                type="button"
+                                onClick={() => setSharingToWhatsAppFile({ ...file, fromOtg: false })}
+                                className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-semibold"
+                                title="Enviar pelo WhatsApp"
+                              >
+                                <MessageSquare className="w-3 h-3" />
+                                <span>WhatsApp</span>
+                              </button>
+
+                              {/* Copiar para Pendrive OTG se liberado */}
+                              {isUsbOtgAllowed && isOtgConnected && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPhoneToOtg(file)}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 transition"
+                                  title="Copiar para Pendrive USB Tipo-C"
+                                >
+                                  <Usb className="w-3 h-3 text-emerald-400" />
+                                  <span className="hidden sm:inline">Copiar p/ Pendrive</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setViewingFile(file)}
+                                className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center hover:bg-blue-600 hover:text-white transition"
+                                title="Visualizar"
+                              >
                                 <Eye className="w-3.5 h-3.5" />
-                              </div>
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -778,152 +1116,260 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                 </button>
 
                 <div className="text-right">
-                  <h3 className="text-sm font-bold text-white">{openedApp.name}</h3>
+                  <h3 className="text-sm font-bold text-white">{openedApp.name || openedApp.packageName || 'Aplicativo'}</h3>
                   <span className="text-[10px] font-mono text-emerald-400">App Homologado</span>
                 </div>
               </div>
 
               {/* Conteúdo do Aplicativo */}
               <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar text-xs sm:text-sm">
-                {openedApp.name.toLowerCase().includes('whats') ? (
-                  <div className="space-y-4">
-                    <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-2xl p-4 text-emerald-200 space-y-1.5">
-                      <span className="font-bold text-sm block text-emerald-300">WhatsApp Corporativo Multivale</span>
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        Canal oficial para comunicação de chegada ao cliente e suporte com a supervisão técnica.
-                      </p>
-                    </div>
+                {(() => {
+                  const openedAppName = (openedApp?.name || openedApp?.packageName || '').toLowerCase();
+                  const openedAppPkg = (openedApp?.packageName || '').toLowerCase();
+                  const isOpenedWhats = openedAppName.includes('whats') || openedAppPkg.includes('whatsapp');
+                  const isOpenedField = openedAppName.includes('ordem') || openedAppName.includes('campo') || openedAppPkg.includes('campo');
+                  const isOpenedPhone = openedAppName.includes('telef') || openedAppName.includes('chamad') || openedAppPkg.includes('dialer');
+                  const isOpenedCamera = openedAppName.includes('camer') || openedAppName.includes('foto') || openedAppPkg.includes('camera');
 
-                    <a
-                      href="https://wa.me/554130998800"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm transition shadow-lg shadow-emerald-950/50"
-                    >
-                      <MessageSquare className="w-5 h-5" />
-                      <span>Abrir Chat com a Central Multivale</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                ) : openedApp.name.toLowerCase().includes('ordem') || openedApp.name.toLowerCase().includes('campo') ? (
-                  <div className="space-y-4">
-                    <div className="bg-blue-950/40 border border-blue-800/60 rounded-2xl p-4 text-blue-200">
-                      <span className="font-bold text-sm block mb-1">Ordem de Serviço #98122 - Em Andamento</span>
+                  if (isOpenedWhats) {
+                    return (
+                      <div className="space-y-3">
+                        <div className="bg-[#121b22] border border-emerald-800/40 rounded-2xl p-3 text-emerald-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white">
+                              <MessageSquare className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="font-bold text-xs block text-white">Central Multivale & Campo</span>
+                              <span className="text-[10px] text-emerald-400">Online • Criptografia Corporativa</span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-800">
+                            WhatsApp Integrado
+                          </span>
+                        </div>
+
+                        {/* Chat Messages */}
+                        <div className="bg-[#0b141a] rounded-2xl p-3 border border-slate-800 space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar">
+                          {whatsAppMessages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`p-2.5 rounded-xl text-xs max-w-[85%] ${
+                                msg.sender.includes('Técnico') || msg.sender === currentEmployee?.name
+                                  ? 'ml-auto bg-[#005c4b] text-white rounded-tr-none'
+                                  : 'mr-auto bg-[#202c33] text-slate-200 rounded-tl-none'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="font-bold text-[11px] text-emerald-300">{msg.sender}</span>
+                                <span className="text-[9px] text-slate-400">{msg.time}</span>
+                              </div>
+                              <p className="leading-relaxed">{msg.text}</p>
+
+                              {/* Se tiver arquivo anexo */}
+                              {msg.fileAttachment && (
+                                <div className="mt-2 p-2 bg-black/30 rounded-lg border border-white/10 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    {msg.fileAttachment.fromOtg ? (
+                                      <Usb className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                    ) : (
+                                      <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <span className="font-mono text-[11px] font-bold truncate block text-white">
+                                        {msg.fileAttachment.name}
+                                      </span>
+                                      <span className="text-[9px] text-emerald-200 block font-mono">
+                                        {msg.fileAttachment.size} • {msg.fileAttachment.fromOtg ? 'Via Pendrive USB Tipo-C (OTG)' : 'Arquivo Interno'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      showKioskToast(`Visualizando anexo ${msg.fileAttachment?.name}`);
+                                    }}
+                                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[10px] text-white font-bold"
+                                  >
+                                    Abrir
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Barra de Ações Rápidas: Anexar do Pendrive OTG */}
+                        {isUsbOtgAllowed && isOtgConnected && (
+                          <div className="bg-[#121622] p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                              <Usb className="w-3.5 h-3.5" />
+                              <span>Anexar Arquivo do Pendrive USB Tipo-C</span>
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {otgFiles.slice(0, 3).map((f) => (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSharingToWhatsAppFile({ ...f, fromOtg: true });
+                                  }}
+                                  className="bg-slate-900 hover:bg-emerald-950 border border-slate-800 hover:border-emerald-700 text-slate-300 hover:text-emerald-300 text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition truncate max-w-[200px]"
+                                >
+                                  <FileText className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                                  <span className="truncate">{f.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <a
+                          href="https://wa.me/554130998800"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full bg-[#00a884] hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs transition shadow"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Abrir no Aplicativo WhatsApp Externo</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    );
+                  }
+
+                  if (isOpenedField) {
+                    return (
+                      <div className="space-y-4">
+                        <div className="bg-blue-950/40 border border-blue-800/60 rounded-2xl p-4 text-blue-200">
+                          <span className="font-bold text-sm block mb-1">Ordem de Serviço #98122 - Em Andamento</span>
+                          <p className="text-xs text-slate-300">
+                            Cliente: Supermercado Paraná Ltda • Instalação Fibra 500 Mbps • Av. Brasil, 4500
+                          </p>
+                        </div>
+
+                        {osFormSubmitted ? (
+                          <div className="bg-emerald-950/60 border border-emerald-800 rounded-2xl p-6 text-center space-y-2">
+                            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                            <h4 className="text-sm font-bold text-white">Ordem Concluída e Assinada!</h4>
+                            <p className="text-xs text-slate-300">
+                              Dados sincronizados com o sistema central de faturamento.
+                            </p>
+                            <button
+                              onClick={() => setOsFormSubmitted(false)}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl mt-2"
+                            >
+                              Editar Dados da OS
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                            <div>
+                              <label className="text-xs text-slate-400 font-bold block mb-1">Potência Óptica Medida (dBm):</label>
+                              <input
+                                type="text"
+                                defaultValue="-19.4 dBm"
+                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs text-slate-400 font-bold block mb-1">Serial da ONU Instalada:</label>
+                              <input
+                                type="text"
+                                defaultValue="ZTEGC1829910"
+                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono"
+                              />
+                            </div>
+
+                            <button
+                              onClick={() => setOsFormSubmitted(true)}
+                              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl mt-2 transition shadow"
+                            >
+                              Salvar e Concluir Instalação
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  if (isOpenedPhone) {
+                    return (
+                      <div className="space-y-4 text-center">
+                        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-2xl font-bold text-white tracking-widest min-h-[50px] flex items-center justify-center">
+                          {phoneDialerNumber || '(41) 3099-8800'}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => setPhoneDialerNumber((prev) => prev + n)}
+                              className="h-12 bg-slate-800/80 hover:bg-slate-700 text-white font-mono font-bold text-lg rounded-xl transition"
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => setPhoneDialerNumber('')}
+                            className="flex-1 bg-slate-800 text-rose-400 font-bold py-3 rounded-xl text-xs"
+                          >
+                            Limpar
+                          </button>
+                          <a
+                            href={`tel:${phoneDialerNumber || '4130998800'}`}
+                            className="flex-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
+                          >
+                            <Phone className="w-4 h-4" />
+                            <span>Chamar Linha</span>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (isOpenedCamera) {
+                    return (
+                      <div className="space-y-4 text-center">
+                        <div className="bg-slate-950 border border-slate-800 rounded-2xl h-56 flex flex-col items-center justify-center p-4">
+                          {cameraCaptured ? (
+                            <div className="space-y-2">
+                              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
+                              <span className="font-bold text-white text-sm block">Foto Salva na Pasta Corporativa!</span>
+                              <span className="text-xs text-slate-400 font-mono block">/MultivaleFotosCampo/IMG_2026_0903.jpg</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 text-slate-400">
+                              <Camera className="w-12 h-12 text-blue-400 mx-auto animate-pulse" />
+                              <span className="text-xs block">Visor da Câmera Operacional</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => setCameraCaptured(!cameraCaptured)}
+                          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-sm transition"
+                        >
+                          {cameraCaptured ? 'Capturar Nova Foto' : 'Tirar Foto do Ponto de Fixação'}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center space-y-3">
+                      <Smartphone className="w-12 h-12 text-blue-400 mx-auto" />
+                      <h4 className="text-sm font-bold text-white">{openedApp.name || openedApp.packageName || 'Aplicativo'}</h4>
                       <p className="text-xs text-slate-300">
-                        Cliente: Supermercado Paraná Ltda • Instalação Fibra 500 Mbps • Av. Brasil, 4500
+                        Aplicativo operando sob conformidade com o agente Android Device Owner da Multivale Telecom.
                       </p>
                     </div>
-
-                    {osFormSubmitted ? (
-                      <div className="bg-emerald-950/60 border border-emerald-800 rounded-2xl p-6 text-center space-y-2">
-                        <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                        <h4 className="text-sm font-bold text-white">Ordem Concluída e Assinada!</h4>
-                        <p className="text-xs text-slate-300">
-                          Dados sincronizados com o sistema central de faturamento.
-                        </p>
-                        <button
-                          onClick={() => setOsFormSubmitted(false)}
-                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl mt-2"
-                        >
-                          Editar Dados da OS
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-                        <div>
-                          <label className="text-xs text-slate-400 font-bold block mb-1">Potência Óptica Medida (dBm):</label>
-                          <input
-                            type="text"
-                            defaultValue="-19.4 dBm"
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs text-slate-400 font-bold block mb-1">Serial da ONU Instalada:</label>
-                          <input
-                            type="text"
-                            defaultValue="ZTEGC1829910"
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono"
-                          />
-                        </div>
-
-                        <button
-                          onClick={() => setOsFormSubmitted(true)}
-                          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl mt-2 transition shadow"
-                        >
-                          Salvar e Concluir Instalação
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : openedApp.name.toLowerCase().includes('telef') ? (
-                  <div className="space-y-4 text-center">
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-2xl font-bold text-white tracking-widest min-h-[50px] flex items-center justify-center">
-                      {phoneDialerNumber || '(41) 3099-8800'}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => setPhoneDialerNumber((prev) => prev + n)}
-                          className="h-12 bg-slate-800/80 hover:bg-slate-700 text-white font-mono font-bold text-lg rounded-xl transition"
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => setPhoneDialerNumber('')}
-                        className="flex-1 bg-slate-800 text-rose-400 font-bold py-3 rounded-xl text-xs"
-                      >
-                        Limpar
-                      </button>
-                      <a
-                        href={`tel:${phoneDialerNumber || '4130998800'}`}
-                        className="flex-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
-                      >
-                        <Phone className="w-4 h-4" />
-                        <span>Chamar Linha</span>
-                      </a>
-                    </div>
-                  </div>
-                ) : openedApp.name.toLowerCase().includes('camer') ? (
-                  <div className="space-y-4 text-center">
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl h-56 flex flex-col items-center justify-center p-4">
-                      {cameraCaptured ? (
-                        <div className="space-y-2">
-                          <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-                          <span className="font-bold text-white text-sm block">Foto Salva na Pasta Corporativa!</span>
-                          <span className="text-xs text-slate-400 font-mono block">/MultivaleFotosCampo/IMG_2026_0903.jpg</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 text-slate-400">
-                          <Camera className="w-12 h-12 text-blue-400 mx-auto animate-pulse" />
-                          <span className="text-xs block">Visor da Câmera Operacional</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => setCameraCaptured(!cameraCaptured)}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-sm transition"
-                    >
-                      {cameraCaptured ? 'Capturar Nova Foto' : 'Tirar Foto do Ponto de Fixação'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center space-y-3">
-                    <Smartphone className="w-12 h-12 text-blue-400 mx-auto" />
-                    <h4 className="text-sm font-bold text-white">{openedApp.name}</h4>
-                    <p className="text-xs text-slate-300">
-                      Aplicativo operando sob conformidade com o agente Android Device Owner da Multivale Telecom.
-                    </p>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -991,18 +1437,167 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    alert(`Arquivo ${viewingFile.name} baixado com sucesso no celular!`);
-                    setViewingFile(null);
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar Arquivo Corporativo</span>
-                </button>
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fileToShare = viewingFile;
+                      const fromOtg = otgFiles.some((f) => f.name === fileToShare.name);
+                      setViewingFile(null);
+                      setSharingToWhatsAppFile({ ...fileToShare, fromOtg });
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-md"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Enviar este Arquivo para o WhatsApp</span>
+                  </button>
+
+                  {isUsbOtgAllowed && isOtgConnected && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCopyPhoneToOtg(viewingFile as any);
+                      }}
+                      className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition text-xs border border-slate-700"
+                    >
+                      <Usb className="w-4 h-4 text-emerald-400" />
+                      <span>Copiar p/ Pendrive USB Tipo-C</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      showKioskToast(`Arquivo ${viewingFile.name} salvo na pasta de downloads.`);
+                      setViewingFile(null);
+                    }}
+                    className="w-full bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition text-xs border border-blue-500/30"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Baixar Cópia na Memória Interna</span>
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: COMPARTILHAR ARQUIVO DIRETAMENTE NO WHATSAPP */}
+        {/* ========================================================================= */}
+        {sharingToWhatsAppFile && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-[#10141E] border border-emerald-700/60 rounded-3xl w-full max-w-md flex flex-col shadow-2xl overflow-hidden">
+              <div className="p-4 bg-emerald-950/60 border-b border-emerald-800/60 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Enviar para o WhatsApp</h4>
+                    <span className="text-[10px] text-emerald-300">Integração de Campo Multivale</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSharingToWhatsAppFile(null)}
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 text-xs sm:text-sm">
+                {/* Card do Arquivo Sendo Enviado */}
+                <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Arquivo Anexo:</span>
+                    {sharingToWhatsAppFile.fromOtg ? (
+                      <span className="text-[10px] font-bold bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-800 flex items-center gap-1 font-mono">
+                        <Usb className="w-3 h-3" />
+                        Via Pendrive USB Tipo-C (OTG)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold bg-blue-950 text-blue-300 px-2 py-0.5 rounded-full border border-blue-800 flex items-center gap-1 font-mono">
+                        <FolderCheck className="w-3 h-3" />
+                        Memória Corporativa
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-700/60 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-white block truncate text-xs sm:text-sm">
+                        {sharingToWhatsAppFile.name}
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {sharingToWhatsAppFile.size} • {sharingToWhatsAppFile.type}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seleção do Destinatário */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 block">Destinatário do WhatsApp:</label>
+                  <select
+                    value={selectedWhatsAppTarget}
+                    onChange={(e) => setSelectedWhatsAppTarget(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Central de NOC & Suporte (+55 41 3099-8800)">Central de NOC & Suporte (+55 41 3099-8800)</option>
+                    <option value="Supervisão Regional de Operações Oeste">Supervisão Regional de Operações Oeste</option>
+                    <option value="Engenharia de Redes & FTTH">Engenharia de Redes & FTTH</option>
+                    <option value="Cliente da OS (Supermercado Paraná)">Cliente da OS (Supermercado Paraná)</option>
+                  </select>
+                </div>
+
+                {/* Mensagem / Observação */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 block">Mensagem de Acompanhamento (Opcional):</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Segue relatório extraído do pendrive OTG após medição no poste..."
+                    value={whatsAppCustomNote}
+                    onChange={(e) => setWhatsAppCustomNote(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSendFileToWhatsApp}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-950/50"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Confirmar Envio pelo WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSharingToWhatsAppFile(null)}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-xl text-xs transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TOAST DE FEEDBACK FLUTUANTE */}
+        {/* ========================================================================= */}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-emerald-500/70 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-200 max-w-sm">
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-medium text-slate-100">{toastMessage}</span>
           </div>
         )}
 

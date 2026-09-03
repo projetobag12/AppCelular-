@@ -61,10 +61,11 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
   const [appSearchTermInModal, setAppSearchTermInModal] = useState('');
 
   const filteredPolicies = policies.filter((p) => {
-    return (
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (!p) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
+    const pName = (p.name || '').toLowerCase();
+    const pDesc = (p.description || '').toLowerCase();
+    return pName.includes(sTerm) || pDesc.includes(sTerm);
   });
 
   const handleOpenCreate = () => {
@@ -95,6 +96,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
       blockStatusBarExpand: true,
       blockPlayStore: true,
       blockUsbData: true,
+      allowUsbOtgStorage: true,
       blockHotspot: true,
       blockUsbTethering: true,
       blockBluetoothTethering: true,
@@ -112,6 +114,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
   const handleOpenEdit = (policy: Policy) => {
     setEditingPolicy({
       ...policy,
+      allowUsbOtgStorage: policy.allowUsbOtgStorage ?? true,
       blockUsbTethering: policy.blockUsbTethering ?? true,
       blockBluetoothTethering: policy.blockBluetoothTethering ?? true
     });
@@ -160,6 +163,17 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
     await onSavePolicy(updatedPolicy);
   };
 
+  // Alternar Liberação de Entrada Tipo-C para Pendrive OTG rapidamente no cartão
+  const handleQuickToggleUsbOtg = async (policy: Policy) => {
+    const isCurrentlyAllowed = policy.allowUsbOtgStorage ?? true;
+    const updatedPolicy: Policy = {
+      ...policy,
+      allowUsbOtgStorage: !isCurrentlyAllowed,
+      updatedAt: new Date().toISOString()
+    };
+    await onSavePolicy(updatedPolicy);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPolicy || !editingPolicy.name) return;
@@ -179,6 +193,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
       blockStatusBarExpand: editingPolicy.blockStatusBarExpand ?? true,
       blockPlayStore: editingPolicy.blockPlayStore ?? true,
       blockUsbData: editingPolicy.blockUsbData ?? true,
+      allowUsbOtgStorage: editingPolicy.allowUsbOtgStorage ?? true,
       blockHotspot: editingPolicy.blockHotspot ?? true,
       blockUsbTethering: editingPolicy.blockUsbTethering ?? true,
       blockBluetoothTethering: editingPolicy.blockBluetoothTethering ?? true,
@@ -233,15 +248,15 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
           />
         </div>
         <span className="text-xs text-slate-400 whitespace-nowrap">
-          Total: <strong className="text-white">{filteredPolicies.length}</strong> políticas ativas
+          Total: <strong className="text-white">{(filteredPolicies || []).length}</strong> políticas ativas
         </span>
       </div>
 
       {/* Policies Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {filteredPolicies.map((policy) => {
-          const associatedDevices = devices.filter((d) => d.policyId === policy.id);
-          const associatedTeams = teams.filter((t) => t.policyId === policy.id);
+        {(filteredPolicies || []).map((policy) => {
+          const associatedDevices = (devices || []).filter((d) => d && d.policyId === policy.id);
+          const associatedTeams = (teams || []).filter((t) => t && t.defaultPolicyId === policy.id);
           const isRoutingBlocked = policy.blockHotspot || policy.blockUsbTethering || policy.blockBluetoothTethering;
 
           return (
@@ -342,8 +357,67 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                   )}
                 </div>
 
+                {/* Destaque: Entrada USB Tipo-C / Pendrive OTG (Arquivos & WhatsApp) */}
+                <div
+                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 mb-3 ${
+                    (policy.allowUsbOtgStorage ?? true)
+                      ? 'bg-emerald-950/20 border-emerald-900/60 text-emerald-300'
+                      : 'bg-rose-950/20 border-rose-900/60 text-rose-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        (policy.allowUsbOtgStorage ?? true)
+                          ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800'
+                          : 'bg-rose-900/40 text-rose-400 border border-rose-800'
+                      }`}
+                    >
+                      <Usb className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-[11px] block truncate">
+                        {(policy.allowUsbOtgStorage ?? true)
+                          ? 'Entrada Tipo-C & Pendrive OTG: LIBERADO'
+                          : 'Entrada Tipo-C (Pendrive OTG): BLOQUEADO'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate">
+                        {(policy.allowUsbOtgStorage ?? true)
+                          ? 'Colaborador pode espetar pendrive USB-C para passar arquivos e enviar p/ WhatsApp'
+                          : 'Entrada Tipo-C bloqueada para pendrives. Apenas carregamento de bateria permitido'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {canManagePolicies && (
+                    <button
+                      type="button"
+                      onClick={() => handleQuickToggleUsbOtg(policy)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex-shrink-0 ${
+                        (policy.allowUsbOtgStorage ?? true)
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow'
+                      }`}
+                      title={(policy.allowUsbOtgStorage ?? true) ? 'Bloquear entrada Tipo-C para pendrive' : 'Liberar entrada Tipo-C para pendrive OTG'}
+                    >
+                      {(policy.allowUsbOtgStorage ?? true) ? 'Bloquear Entrada' : 'Liberar Tipo-C'}
+                    </button>
+                  )}
+                </div>
+
                 {/* Badges & Hardware Rules */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
+                  {(policy.allowUsbOtgStorage ?? true) ? (
+                    <span className="bg-emerald-950/40 text-emerald-300 border border-emerald-800/50 text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Usb className="w-3 h-3" />
+                      <span>Pendrive Tipo-C (OTG) Liberado</span>
+                    </span>
+                  ) : (
+                    <span className="bg-rose-950/40 text-rose-300 border border-rose-800/50 text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Usb className="w-3 h-3" />
+                      <span>Pendrive Tipo-C Bloqueado</span>
+                    </span>
+                  )}
                   {policy.blockPlayStore && (
                     <span className="bg-red-950/40 text-red-400 border border-red-800/50 text-[10px] font-semibold px-2 py-0.5 rounded">
                       Play Store Bloqueada
@@ -399,7 +473,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 </div>
 
                 {/* Pastas Permitidas Pill */}
-                {policy.allowedFolders && policy.allowedFolders.length > 0 && (
+                {(policy.allowedFolders || []).length > 0 && (
                   <div className="bg-[#11141A] p-3 rounded-xl border border-slate-800 text-xs mb-3">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-slate-400 font-bold flex items-center gap-1.5">
@@ -407,7 +481,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                         <span>Diretórios & Pastas Liberadas</span>
                       </span>
                       <span className="font-bold text-amber-400 font-mono text-[11px]">
-                        {policy.allowedFolders.length} pastas
+                        {(policy.allowedFolders || []).length} pastas
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1">
@@ -428,10 +502,10 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 <div className="bg-[#11141A] p-3 rounded-xl border border-slate-800 text-xs mb-4">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-slate-400 font-bold">Aplicativos Permitidos no Aparelho</span>
-                    <span className="font-bold text-emerald-400">{policy.allowedAppPackageNames.length} pacotes</span>
+                    <span className="font-bold text-emerald-400">{(policy.allowedAppPackageNames || []).length} pacotes</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {policy.allowedAppPackageNames.slice(0, 5).map((pkg) => {
+                    {(policy.allowedAppPackageNames || []).slice(0, 5).map((pkg) => {
                       const appObj = applications.find((a) => a.packageName === pkg);
                       return (
                         <span
@@ -442,9 +516,9 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                         </span>
                       );
                     })}
-                    {policy.allowedAppPackageNames.length > 5 && (
+                    {(policy.allowedAppPackageNames || []).length > 5 && (
                       <span className="text-[10px] text-slate-500 font-semibold px-1 py-0.5">
-                        +{policy.allowedAppPackageNames.length - 5} outros
+                        +{(policy.allowedAppPackageNames || []).length - 5} outros
                       </span>
                     )}
                   </div>
@@ -454,11 +528,11 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 <div className="flex items-center gap-4 text-xs text-slate-400">
                   <span className="flex items-center gap-1.5">
                     <Smartphone className="w-3.5 h-3.5 text-blue-400" />
-                    <strong>{associatedDevices.length}</strong> aparelhos vinculados
+                    <strong>{(associatedDevices || []).length}</strong> aparelhos vinculados
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <strong>{associatedTeams.length}</strong> equipes associadas
+                    <strong>{(associatedTeams || []).length}</strong> equipes associadas
                   </span>
                 </div>
               </div>
@@ -629,6 +703,40 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 <span className="text-[11px] font-bold text-slate-300 block mb-2">
                   Outras Travas do Sistema Operacional Android Enterprise
                 </span>
+
+                {/* Opção Específica para Entrada Tipo-C / Pendrive OTG & WhatsApp */}
+                <div className="p-3.5 bg-[#11141A] rounded-xl border border-slate-800 space-y-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                        <Usb className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-white block truncate">
+                          Liberar Entrada USB Tipo-C para Pendrive OTG (Arquivos & WhatsApp)
+                        </span>
+                        <span className="text-[10px] text-slate-400 block truncate">
+                          Permite plugar pendrive Tipo-C para ler, transferir documentos e enviar direto ao WhatsApp
+                        </span>
+                      </div>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={editingPolicy.allowUsbOtgStorage ?? true}
+                        onChange={(e) => setEditingPolicy({ ...editingPolicy, allowUsbOtgStorage: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                  
+                  <p className="text-[11px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+                    <strong className="text-emerald-400">Finalidade Operacional:</strong> Quando ativado, os técnicos e consultores de campo podem conectar qualquer pendrive ou leitor USB Tipo-C via OTG no celular para passar arquivos, medições ópticas e projetos, permitindo o envio imediato destes arquivos via WhatsApp Corporativo para os clientes e supervisor sem precisar de computador.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-[#11141A] p-4 rounded-xl border border-slate-800">
                   <label className="flex items-center gap-2 cursor-pointer text-slate-200">
                     <input
@@ -852,7 +960,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                     </span>
                   </div>
                   <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800">
-                    {editingPolicy.allowedAppPackageNames?.length || 0} de {applications.length} liberados
+                    {editingPolicy.allowedAppPackageNames?.length || 0} de {(applications || []).length} liberados
                   </span>
                 </div>
 
@@ -907,11 +1015,12 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 <div className="space-y-1.5 max-h-56 overflow-y-auto bg-[#11141A] p-3 rounded-xl border border-slate-800 custom-scrollbar">
                   {applications
                     .filter((app) => {
+                      if (!app) return false;
                       if (!appSearchTermInModal) return true;
-                      return (
-                        app.name.toLowerCase().includes(appSearchTermInModal.toLowerCase()) ||
-                        app.packageName.toLowerCase().includes(appSearchTermInModal.toLowerCase())
-                      );
+                      const modalSTerm = (appSearchTermInModal || '').toLowerCase();
+                      const appName = (app.name || '').toLowerCase();
+                      const appPkg = (app.packageName || '').toLowerCase();
+                      return appName.includes(modalSTerm) || appPkg.includes(modalSTerm);
                     })
                     .map((app) => {
                       const isChecked = editingPolicy.allowedAppPackageNames?.includes(app.packageName);
@@ -1041,12 +1150,36 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 </div>
               </div>
 
+              {/* Status da Entrada Tipo-C / Pendrive OTG */}
+              <div className="p-3 bg-[#11141A] rounded-xl border border-slate-800 space-y-1.5">
+                <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Usb className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Entrada USB Tipo-C para Pendrive OTG</span>
+                  </span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                      (selectedPolicyForDetails.allowUsbOtgStorage ?? true)
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : 'bg-rose-950 text-rose-400 border border-rose-800'
+                    }`}
+                  >
+                    {(selectedPolicyForDetails.allowUsbOtgStorage ?? true) ? 'LIBERADO' : 'BLOQUEADO'}
+                  </span>
+                </span>
+                <p className="text-[11px] text-slate-300">
+                  {(selectedPolicyForDetails.allowUsbOtgStorage ?? true)
+                    ? 'Colaborador pode conectar pendrive USB-C para transferir arquivos e enviar direto para o WhatsApp Corporativo.'
+                    : 'Entrada Tipo-C restrita a recarga. Transferência de arquivos via pendrive OTG bloqueada.'}
+                </p>
+              </div>
+
               <div>
                 <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1.5">
-                  Pacotes Android Autorizados ({selectedPolicyForDetails.allowedAppPackageNames.length})
+                  Pacotes Android Autorizados ({(selectedPolicyForDetails.allowedAppPackageNames || []).length})
                 </span>
                 <div className="bg-[#11141A] p-3 rounded-xl border border-slate-800 max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
-                  {selectedPolicyForDetails.allowedAppPackageNames.map((pkg) => {
+                  {(selectedPolicyForDetails.allowedAppPackageNames || []).map((pkg) => {
                     const appObj = applications.find((a) => a.packageName === pkg);
                     return (
                       <div key={pkg} className="font-mono text-[11px] text-emerald-400 flex items-center justify-between gap-1.5 py-0.5 border-b border-slate-900">
@@ -1061,14 +1194,14 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({
                 </div>
               </div>
 
-              {selectedPolicyForDetails.allowedFolders && selectedPolicyForDetails.allowedFolders.length > 0 && (
+              {(selectedPolicyForDetails.allowedFolders || []).length > 0 && (
                 <div>
                   <span className="text-[10px] text-amber-500 uppercase font-bold block mb-1.5 flex items-center gap-1.5">
                     <FolderCheck className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Pastas e Diretórios Liberados ({selectedPolicyForDetails.allowedFolders.length})</span>
+                    <span>Pastas e Diretórios Liberados ({(selectedPolicyForDetails.allowedFolders || []).length})</span>
                   </span>
                   <div className="bg-[#11141A] p-3 rounded-xl border border-slate-800 max-h-36 overflow-y-auto space-y-1 custom-scrollbar">
-                    {selectedPolicyForDetails.allowedFolders.map((folder) => (
+                    {(selectedPolicyForDetails.allowedFolders || []).map((folder) => (
                       <div key={folder} className="font-mono text-[11px] text-amber-300 flex items-center gap-1.5">
                         <Folder className="w-3.5 h-3.5 text-amber-400" />
                         <span>{folder}</span>

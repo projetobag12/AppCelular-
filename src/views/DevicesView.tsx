@@ -80,12 +80,14 @@ export const DevicesView: React.FC<DevicesViewProps> = ({
 
   // Filtering
   const filteredDevices = devices.filter((d) => {
+    if (!d) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.imei.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (d.employeeName && d.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (d.teamName && d.teamName.toLowerCase().includes(searchTerm.toLowerCase()));
+      (d.name || '').toLowerCase().includes(sTerm) ||
+      (d.model || '').toLowerCase().includes(sTerm) ||
+      (d.imei || '').toLowerCase().includes(sTerm) ||
+      (d.employeeName ? d.employeeName.toLowerCase().includes(sTerm) : false) ||
+      (d.teamName ? d.teamName.toLowerCase().includes(sTerm) : false);
 
     const matchesStatus = statusFilter === 'ALL' || d.status === statusFilter;
     const matchesTeam = teamFilter === 'ALL' || d.teamId === teamFilter;
@@ -358,7 +360,7 @@ export const DevicesView: React.FC<DevicesViewProps> = ({
 
         {/* Count Indicator */}
         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-          <span>Mostrando <strong className="text-white">{filteredDevices.length}</strong> de {devices.length} dispositivos</span>
+          <span>Mostrando <strong className="text-white">{(filteredDevices || []).length}</strong> de {(devices || []).length} dispositivos</span>
           {(searchTerm || statusFilter !== 'ALL' || teamFilter !== 'ALL' || policyFilter !== 'ALL') && (
             <button
               onClick={() => {
@@ -393,14 +395,14 @@ export const DevicesView: React.FC<DevicesViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
-              {filteredDevices.length === 0 ? (
+              {(filteredDevices || []).length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-8 text-slate-500">
                     Nenhum dispositivo encontrado com os filtros selecionados.
                   </td>
                 </tr>
               ) : (
-                filteredDevices.map((device) => {
+                (filteredDevices || []).map((device) => {
                   const isDeactivated = device.status === 'BLOQUEADO';
                   const isSyncing = syncingDeviceId === device.id;
                   return (
@@ -828,9 +830,9 @@ export const DevicesView: React.FC<DevicesViewProps> = ({
                 onChange={(e) => setSelectedPolicyIdToApply(e.target.value)}
                 className="w-full bg-[#11141A] border border-slate-700 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500"
               >
-                {policies.map((p) => (
+                {(policies || []).map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.securityModel} - {p.allowedAppPackageNames.length} apps)
+                    {p.name} ({p.securityModel} - {(p.allowedAppPackageNames || []).length} apps)
                   </option>
                 ))}
               </select>

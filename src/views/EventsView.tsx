@@ -22,11 +22,13 @@ export const EventsView: React.FC<EventsViewProps> = ({ events }) => {
   const [actionFilter, setActionFilter] = useState('ALL');
 
   const filteredEvents = events.filter((evt) => {
+    if (!evt) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      evt.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      evt.targetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      evt.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (evt.newValue && evt.newValue.toLowerCase().includes(searchTerm.toLowerCase()));
+      (evt.userName || '').toLowerCase().includes(sTerm) ||
+      (evt.targetName || '').toLowerCase().includes(sTerm) ||
+      (evt.action || '').toLowerCase().includes(sTerm) ||
+      (evt.newValue ? evt.newValue.toLowerCase().includes(sTerm) : false);
 
     const matchesAction = actionFilter === 'ALL' || evt.action === actionFilter;
 
@@ -34,10 +36,11 @@ export const EventsView: React.FC<EventsViewProps> = ({ events }) => {
   });
 
   const getActionColor = (action: string) => {
-    if (action.includes('CREATED') || action.includes('ALLOWED') || action.includes('ACTIVATED')) {
+    const act = action || '';
+    if (act.includes('CREATED') || act.includes('ALLOWED') || act.includes('ACTIVATED')) {
       return 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80';
     }
-    if (action.includes('BLOCKED') || action.includes('DISABLED') || action.includes('LOCKED') || action.includes('DELETED')) {
+    if (act.includes('BLOCKED') || act.includes('DISABLED') || act.includes('LOCKED') || act.includes('DELETED')) {
       return 'bg-red-950/60 text-red-400 border-red-800/80';
     }
     return 'bg-blue-950/60 text-blue-400 border-blue-800/80';
@@ -110,7 +113,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ events }) => {
         </div>
 
         <div className="text-[11px] text-slate-400 pt-1">
-          Mostrando <strong className="text-white">{filteredEvents.length}</strong> eventos registrados
+          Mostrando <strong className="text-white">{(filteredEvents || []).length}</strong> eventos registrados
         </div>
       </div>
 
@@ -129,14 +132,14 @@ export const EventsView: React.FC<EventsViewProps> = ({ events }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
-              {filteredEvents.length === 0 ? (
+              {(filteredEvents || []).length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-8 text-slate-500">
                     Nenhum evento registrado com os filtros informados.
                   </td>
                 </tr>
               ) : (
-                filteredEvents.map((evt) => (
+                (filteredEvents || []).map((evt) => (
                   <tr key={evt.id} className="hover:bg-slate-800/30 transition">
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
                       {formatDateTime(evt.timestamp)}

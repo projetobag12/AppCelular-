@@ -114,6 +114,7 @@ export interface Policy {
   associatedTeamIds: string[];
   blockPlayStore: boolean;
   blockUsbData: boolean;
+  allowUsbOtgStorage?: boolean; // Libera entrada USB Tipo-C para pendrive OTG (transferência de arquivos e envio WhatsApp)
   blockHotspot: boolean; // Bloqueia Roteador Wi-Fi (Hotspot)
   blockUsbTethering?: boolean; // Bloqueia Roteamento de Internet via Cabo USB
   blockBluetoothTethering?: boolean; // Bloqueia Roteamento de Internet via Bluetooth

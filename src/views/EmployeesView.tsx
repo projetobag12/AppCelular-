@@ -46,12 +46,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const [editingEmployee, setEditingEmployee] = useState<Partial<Employee> | null>(null);
   const [viewingEmployeeDevices, setViewingEmployeeDevices] = useState<Employee | null>(null);
 
-  const filteredEmployees = employees.filter((emp) => {
+  const filteredEmployees = (employees || []).filter((emp) => {
+    if (!emp) return false;
+    const sTerm = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (emp.name || '').toLowerCase().includes(sTerm) ||
+      (emp.registrationNumber || '').toLowerCase().includes(sTerm) ||
+      (emp.jobTitle || '').toLowerCase().includes(sTerm) ||
+      (emp.email || '').toLowerCase().includes(sTerm);
 
     const matchesTeam = teamFilter === 'ALL' || emp.teamId === teamFilter;
     const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
@@ -64,8 +66,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       id: `emp-${Date.now()}`,
       name: '',
       registrationNumber: `MV-2026-${Math.floor(100 + Math.random() * 900)}`,
-      teamId: teams[0]?.id || 'team-curitiba',
-      teamName: teams[0]?.name || 'Curitiba',
+      teamId: teams?.[0]?.id || 'team-curitiba',
+      teamName: teams?.[0]?.name || 'Curitiba',
       associatedDeviceIds: [],
       status: 'ATIVO',
       email: '',
@@ -85,7 +87,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     e.preventDefault();
     if (!editingEmployee || !editingEmployee.name || !editingEmployee.registrationNumber) return;
 
-    const team = teams.find((t) => t.id === editingEmployee.teamId);
+    const team = (teams || []).find((t) => t && t.id === editingEmployee.teamId);
 
     const fullEmp: Employee = {
       id: editingEmployee.id || `emp-${Date.now()}`,
@@ -95,7 +97,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       teamName: team?.name || editingEmployee.teamName || 'Geral',
       associatedDeviceIds: editingEmployee.associatedDeviceIds || [],
       status: editingEmployee.status || 'ATIVO',
-      email: editingEmployee.email || `${editingEmployee.name.toLowerCase().replace(/\s+/g, '.')}@multivale.com.br`,
+      email: editingEmployee.email || `${(editingEmployee.name || 'colaborador').toLowerCase().replace(/\s+/g, '.')}@multivale.com.br`,
       phone: editingEmployee.phone || '(41) 99000-0000',
       jobTitle: editingEmployee.jobTitle || 'Colaborador Corporativo',
       createdAt: editingEmployee.createdAt || new Date().toISOString()
@@ -176,8 +178,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
 
       {/* Employees Grid / Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEmployees.map((emp) => {
-          const empDevices = devices.filter((d) => d.employeeId === emp.id);
+        {(filteredEmployees || []).map((emp) => {
+          const empDevices = (devices || []).filter((d) => d && d.employeeId === emp.id);
           return (
             <div
               key={emp.id}
@@ -223,13 +225,13 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                 {/* Associated Devices Pill */}
                 <div className="mt-3 pt-3 border-t border-slate-800/80">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
-                    Aparelhos Associados ({empDevices.length})
+                    Aparelhos Associados ({(empDevices || []).length})
                   </span>
-                  {empDevices.length === 0 ? (
+                  {(empDevices || []).length === 0 ? (
                     <span className="text-[11px] text-slate-500 italic">Nenhum smartphone vinculado</span>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {empDevices.map((dev) => (
+                      {(empDevices || []).map((dev) => (
                         <button
                           key={dev.id}
                           onClick={() => onSelectDevice(dev)}

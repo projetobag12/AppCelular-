@@ -65,8 +65,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
     e.preventDefault();
     if (!editingTeam || !editingTeam.name || !editingTeam.region) return;
 
-    const teamDevs = devices.filter((d) => d.teamId === editingTeam.id).length;
-    const teamEmps = employees.filter((e) => e.teamId === editingTeam.id).length;
+    const teamDevs = (devices || []).filter((d) => d && d.teamId === editingTeam.id).length;
+    const teamEmps = (employees || []).filter((e) => e && e.teamId === editingTeam.id).length;
 
     const fullTeam: Team = {
       id: editingTeam.id || `team-${Date.now()}`,
@@ -154,14 +154,14 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                     <Users className="w-4 h-4 text-slate-400" />
                     <div>
                       <span className="text-slate-500 text-[10px] uppercase font-bold block">Membros</span>
-                      <span className="font-bold text-white">{teamEmployees.length || team.memberCount} funcionários</span>
+                      <span className="font-bold text-white">{(teamEmployees || []).length || team.memberCount || 0} funcionários</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-slate-400" />
                     <div>
                       <span className="text-slate-500 text-[10px] uppercase font-bold block">Smartphones</span>
-                      <span className="font-bold text-white">{teamDevices.length || team.deviceCount} aparelhos</span>
+                      <span className="font-bold text-white">{(teamDevices || []).length || team.deviceCount || 0} aparelhos</span>
                     </div>
                   </div>
                 </div>
@@ -328,9 +328,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                   onChange={(e) => setSelectedBatchPolicyId(e.target.value)}
                   className="w-full bg-[#11141A] border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500"
                 >
-                  {policies.map((pol) => (
+                  {(policies || []).map((pol) => (
                     <option key={pol.id} value={pol.id}>
-                      {pol.name} ({pol.allowedAppPackageNames.length} apps autorizados)
+                      {pol.name} ({(pol.allowedAppPackageNames || []).length} apps autorizados)
                     </option>
                   ))}
                 </select>

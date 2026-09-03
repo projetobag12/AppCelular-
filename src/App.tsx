@@ -102,7 +102,18 @@ function MainApp() {
         collection(db, 'policies'),
         (snapshot) => {
           if (!snapshot.empty) {
-            const list = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as Policy));
+            const list = snapshot.docs.map((d) => {
+              const data = d.data();
+              return {
+                ...data,
+                id: d.id,
+                allowedAppPackageNames: Array.isArray(data.allowedAppPackageNames) ? data.allowedAppPackageNames : [],
+                blockedAppPackageNames: Array.isArray(data.blockedAppPackageNames) ? data.blockedAppPackageNames : [],
+                associatedDeviceIds: Array.isArray(data.associatedDeviceIds) ? data.associatedDeviceIds : [],
+                associatedTeamIds: Array.isArray(data.associatedTeamIds) ? data.associatedTeamIds : [],
+                allowedFolders: Array.isArray(data.allowedFolders) ? data.allowedFolders : [],
+              } as Policy;
+            });
             setPolicies(list);
           }
         },
@@ -126,7 +137,14 @@ function MainApp() {
         collection(db, 'employees'),
         (snapshot) => {
           if (!snapshot.empty) {
-            const list = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as Employee));
+            const list = snapshot.docs.map((d) => {
+              const data = d.data();
+              return {
+                ...data,
+                id: d.id,
+                associatedDeviceIds: Array.isArray(data.associatedDeviceIds) ? data.associatedDeviceIds : [],
+              } as Employee;
+            });
             setEmployees(list);
           }
         },
@@ -415,7 +433,7 @@ function MainApp() {
       targetType: 'TEAM',
       targetId: team.id,
       targetName: team.name,
-      newValue: `Política Aplicada: ${policy.name} (${teamDevices.length} aparelhos sincronizados)`
+      newValue: `Política Aplicada: ${policy.name} (${(teamDevices || []).length} aparelhos sincronizados)`
     });
   };
 
@@ -505,7 +523,7 @@ function MainApp() {
       targetType: 'POLICY',
       targetId: policy.id,
       targetName: policy.name,
-      newValue: `Modelo: ${policy.securityModel}, Apps Permitidos: ${policy.allowedAppPackageNames.length}`
+      newValue: `Modelo: ${policy.securityModel}, Apps Permitidos: ${(policy.allowedAppPackageNames || []).length}`
     });
   };
 
@@ -637,7 +655,7 @@ function MainApp() {
     );
   }
 
-  const unresolvedCount = alerts.filter((a) => !a.resolved).length;
+  const unresolvedCount = (alerts || []).filter((a) => a && !a.resolved).length;
 
   return (
     <div className="min-h-screen bg-[#0E1015] text-slate-200 flex font-sans antialiased selection:bg-blue-600 selection:text-white">
