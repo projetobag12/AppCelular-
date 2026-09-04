@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { Device, Policy, Application, Employee } from '../types';
 import { GestorLoginModal } from '../components/GestorLoginModal';
+import { db, doc, setDoc } from '../lib/firebase';
 
 interface CollaboratorKioskViewProps {
   devices: Device[];
@@ -107,6 +108,110 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Auto-registro e sincronização em tempo real com o Firestore para celulares reais
+  useEffect(() => {
+    const enrollAndSyncDevice = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+
+        // Recupera ou gera um ID permanente para este aparelho
+        let deviceId = localStorage.getItem('multivale_device_id');
+        const isNewDevice = !deviceId;
+        if (!deviceId) {
+          deviceId = `dev-real-${Math.random().toString(36).substring(2, 8)}`;
+          localStorage.setItem('multivale_device_id', deviceId);
+        }
+
+        // Detecta informações do aparelho
+        const ua = navigator.userAgent || '';
+        let detectedManufacturer = 'Motorola';
+        let detectedModel = 'Moto G (Empresarial)';
+
+        if (/Samsung|SM-|Galaxy/i.test(ua)) {
+          detectedManufacturer = 'Samsung';
+          detectedModel = 'Samsung Galaxy (Empresarial)';
+        } else if (/Xiaomi|Redmi|POCO/i.test(ua)) {
+          detectedManufacturer = 'Xiaomi';
+          detectedModel = 'Xiaomi Redmi (Empresarial)';
+        } else if (/Motorola|Moto/i.test(ua)) {
+          detectedManufacturer = 'Motorola';
+          detectedModel = 'Motorola Moto (Empresarial)';
+        }
+
+        let androidVer = '13.0';
+        const match = ua.match(/Android\s([0-9\.]+)/);
+        if (match && match[1]) {
+          androidVer = match[1];
+        }
+
+        // Tenta obter bateria real do navegador
+        let batteryPct = 85;
+        try {
+          // @ts-ignore
+          if (navigator.getBattery) {
+            // @ts-ignore
+            const battery = await navigator.getBattery();
+            batteryPct = Math.round(battery.level * 100);
+          }
+        } catch {}
+
+        const realDeviceData: Device = {
+          id: deviceId,
+          name: `${detectedManufacturer} ${detectedModel}`,
+          manufacturer: detectedManufacturer,
+          model: detectedModel,
+          androidVersion: androidVer,
+          imei: '86' + (Math.abs(deviceId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) * 9876543) % 1000000000000).toString().padStart(13, '0'),
+          serialNumber: `MV-${deviceId.replace('dev-', '').toUpperCase()}`,
+          status: 'ATIVO',
+          managementMode: 'DEVICE_OWNER',
+          batteryLevel: batteryPct,
+          isCharging: false,
+          storageUsedGb: 34,
+          storageTotalGb: 128,
+          lastSync: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          policyId: 'pol-001',
+          policyName: 'Operações Técnicas de Campo',
+          teamId: 'team-001',
+          teamName: 'Equipe Campo Cascavel',
+          employeeId: 'emp-001',
+          employeeName: 'Carlos Eduardo Mendes',
+          ipAddress: '192.168.1.105',
+          installedAppsCount: allowedApps.length || 6,
+          isRemotelyLocked: false
+        };
+
+        // Salva ou atualiza no Firestore para aparecer instantaneamente no painel do Gestor
+        await setDoc(doc(db, 'devices', deviceId), realDeviceData, { merge: true });
+        setSelectedDeviceId(deviceId);
+      } catch (err) {
+        console.warn('Sync device error:', err);
+      }
+    };
+
+    enrollAndSyncDevice();
+
+    // Heartbeat a cada 30 segundos mantendo o status ONLINE no Gestor
+    const syncInterval = setInterval(async () => {
+      try {
+        const deviceId = localStorage.getItem('multivale_device_id');
+        if (deviceId) {
+          await setDoc(
+            doc(db, 'devices', deviceId),
+            {
+              lastSync: new Date().toISOString(),
+              status: 'ATIVO'
+            },
+            { merge: true }
+          );
+        }
+      } catch {}
+    }, 30000);
+
+    return () => clearInterval(syncInterval);
   }, []);
 
   // Apps permitidos pela política
