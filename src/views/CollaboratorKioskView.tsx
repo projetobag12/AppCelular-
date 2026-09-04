@@ -77,9 +77,8 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
   // Modal de Login do Gestor
   const [isGestorLoginOpen, setIsGestorLoginOpen] = useState(false);
 
-  // Estados de Simulação de Apps
+  // Estados de Apps Homologados
   const [openedApp, setOpenedApp] = useState<Application | null>(null);
-  const [blockedAttemptApp, setBlockedAttemptApp] = useState<string | null>(null);
   const [phoneDialerNumber, setPhoneDialerNumber] = useState('');
   const [calcInput, setCalcInput] = useState('0');
   const [osFormSubmitted, setOsFormSubmitted] = useState(false);
@@ -635,27 +634,6 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
             </div>
           </div>
 
-          {/* Seletor de Aparelho (Útil para testes no sistema) */}
-          {(devices || []).length > 1 && (
-            <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-xl px-3 py-1.5 text-xs">
-              <span className="text-slate-400 text-[11px]">Alternar Celular de Teste:</span>
-              <select
-                value={selectedDeviceId}
-                onChange={(e) => {
-                  setSelectedDeviceId(e.target.value);
-                  onSelectDevice?.(e.target.value);
-                }}
-                className="bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-xs px-2 py-1 focus:outline-none focus:border-blue-500 font-medium"
-              >
-                {devices.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.employeeName || d.name} ({d.model})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* ======================================================================= */}
           {/* 3. ABAS DE NAVEGAÇÃO DO CELULAR (GRANDES E FÁCEIS DE TOCAR COM O DEDO) */}
           {/* ======================================================================= */}
@@ -794,46 +772,6 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                   );
                 })}
               </div>
-
-              {/* Seção de Demonstração de Aplicativos Bloqueados */}
-              <div className="mt-6 pt-4 border-t border-slate-800/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Aplicativos Bloqueados pelo MDM Multivale:</span>
-                  </span>
-                  <span className="text-[11px] text-slate-500">Teste o bloqueio</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { name: 'YouTube', type: 'Vídeos Pessoais' },
-                    { name: 'Instagram', type: 'Rede Social' },
-                    { name: 'TikTok', type: 'Rede Social' },
-                    { name: 'Play Store', type: 'Instalação Bloqueada' },
-                    { name: 'Jogos / Games', type: 'Lazer' },
-                    { name: 'Ajustes Android', type: 'Sistema Travado' }
-                  ].map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => setBlockedAttemptApp(item.name)}
-                      className="bg-rose-950/20 hover:bg-rose-900/40 border border-rose-800/40 rounded-xl p-2.5 text-left transition flex items-center gap-2 group active:scale-95"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-rose-900/50 text-rose-300 flex items-center justify-center flex-shrink-0">
-                        <Lock className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-rose-200 block truncate group-hover:text-white">
-                          {item.name}
-                        </span>
-                        <span className="text-[10px] text-rose-400/80 block truncate">
-                          Bloqueado
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -968,18 +906,8 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                       <Usb className="w-8 h-8 text-slate-500 mx-auto" />
                       <span className="text-xs font-bold text-slate-300 block">Nenhum pendrive Tipo-C conectado</span>
                       <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                        Espete um pendrive USB Tipo-C na entrada do celular para ler medições, relatórios e fotos de campo.
+                        Conecte um pendrive USB Tipo-C na entrada do celular para ler medições, relatórios e fotos de campo.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsOtgConnected(true);
-                          showKioskToast('Pendrive USB Tipo-C conectado!');
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"
-                      >
-                        Simular Conexão de Pendrive Tipo-C
-                      </button>
                     </div>
                   )}
                 </div>
@@ -1567,37 +1495,6 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                   );
                 })()}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* MODAL: AVISO DE APLICATIVO BLOQUEADO */}
-        {/* ========================================================================= */}
-        {blockedAttemptApp && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-[#121622] border border-rose-800/80 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl shadow-rose-950/50">
-              <div className="w-14 h-14 rounded-2xl bg-rose-600/20 border border-rose-500/40 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-                <Lock className="w-7 h-7" />
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-white">Acesso Não Autorizado</h3>
-                <span className="text-xs text-rose-400 font-bold block mt-1">
-                  {blockedAttemptApp}
-                </span>
-              </div>
-
-              <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
-                Este aplicativo está <strong className="text-rose-300">bloqueado</strong> pelas políticas de segurança da Multivale Telecom para o perfil de trabalho deste smartphone.
-              </p>
-
-              <button
-                onClick={() => setBlockedAttemptApp(null)}
-                className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs transition"
-              >
-                Entendi e Voltar
-              </button>
             </div>
           </div>
         )}

@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithPin = (pin: string): boolean => {
     // PIN / Senha mestre forte de segurança da Multivale
     const cleaned = pin.trim();
-    if (cleaned === '1018192327aA#' || cleaned === '1234' || cleaned === '0000') {
+    if (cleaned === '1018192327aA#') {
       const gestorUser = INITIAL_USERS[0];
       setCurrentUser(gestorUser);
       localStorage.setItem('multivale_user', JSON.stringify(gestorUser));

@@ -9,9 +9,7 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-  Smartphone,
-  UserCheck,
-  Sparkles
+  Smartphone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,7 +24,7 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { loginWithEmail, loginWithPin, quickLoginAs, loginWithGoogle } = useAuth();
+  const { loginWithEmail, loginWithPin } = useAuth();
 
   const [authMethod, setAuthMethod] = useState<'pin' | 'credentials'>('pin');
   
@@ -65,7 +63,7 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
         onClose();
       }, 500);
     } else {
-      setError('PIN incorreto. Digite a senha mestra forte configurada (1018192327aA#).');
+      setError('Senha ou PIN incorreto. Acesso restrito a gestores autorizados.');
     }
   };
 
@@ -78,9 +76,14 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
       return;
     }
 
+    if (!password) {
+      setError('Informe sua senha de gestor.');
+      return;
+    }
+
     try {
       setIsLoading(true);
-      await loginWithEmail(email, password || '1018192327aA#');
+      await loginWithEmail(email, password);
       setSuccessMsg('Login realizado com sucesso!');
       setTimeout(() => {
         setSuccessMsg('');
@@ -88,35 +91,7 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
         onClose();
       }, 500);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao autenticar gestor. Verifique os dados.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickDemo = () => {
-    quickLoginAs();
-    setSuccessMsg('Entrando como Gestor Multivale...');
-    setTimeout(() => {
-      setSuccessMsg('');
-      onSuccess();
-      onClose();
-    }, 400);
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      setError('');
-      await loginWithGoogle();
-      setSuccessMsg('Autenticado via Google com sucesso!');
-      setTimeout(() => {
-        setSuccessMsg('');
-        onSuccess();
-        onClose();
-      }, 500);
-    } catch (err: any) {
-      setError('Não foi possível autenticar com o Google.');
+      setError(err?.message || 'Falha ao autenticar gestor. Verifique seus dados.');
     } finally {
       setIsLoading(false);
     }
@@ -210,20 +185,9 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
           {authMethod === 'pin' && (
             <form onSubmit={handlePinSubmit} className="space-y-4">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-medium text-slate-300">
-                    PIN / Senha de Segurança Forte:
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setPin('1018192327aA#')}
-                    className="text-[11px] font-mono text-amber-400 hover:text-amber-300 bg-amber-950/50 hover:bg-amber-900/60 border border-amber-800/60 px-2 py-0.5 rounded-lg transition flex items-center gap-1"
-                    title="Preencher com o PIN forte cadastrado"
-                  >
-                    <span>Preencher:</span>
-                    <span className="font-bold underline">1018192327aA#</span>
-                  </button>
-                </div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Senha Mestra ou PIN do Gestor:
+                </label>
 
                 <div className="relative">
                   <input
@@ -231,7 +195,7 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
                     maxLength={32}
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
-                    placeholder="1018192327aA#"
+                    placeholder="Digite a senha restrita"
                     autoFocus
                     className="w-full bg-[#161B24] border border-slate-700 focus:border-blue-500 rounded-2xl p-3.5 pr-11 text-center text-lg sm:text-xl font-mono text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 tracking-wider"
                   />
@@ -239,46 +203,14 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
                     type="button"
                     onClick={() => setShowPin(!showPin)}
                     className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 transition"
-                    title={showPin ? 'Ocultar PIN' : 'Ver PIN digitado'}
+                    title={showPin ? 'Ocultar senha' : 'Ver senha digitada'}
                   >
                     {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 px-1">
-                  <span>Código de desbloqueio MDM:</span>
-                  <span className="font-mono text-amber-400 font-bold tracking-wide">1018192327aA#</span>
-                </div>
-              </div>
-
-              {/* Teclado rápido adaptado para o novo PIN forte */}
-              <div className="grid grid-cols-4 gap-1.5 pt-1">
-                {['1', '0', '8', '9', '2', '3', '7', 'a', 'A', '#', 'Limpar', 'OK'].map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      if (key === 'Limpar') {
-                        setPin('');
-                      } else if (key === 'OK') {
-                        handlePinSubmit();
-                      } else {
-                        setPin((prev) => prev + key);
-                      }
-                    }}
-                    className={`h-11 rounded-xl font-mono text-sm font-bold transition flex items-center justify-center ${
-                      key === 'OK'
-                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md font-sans text-xs'
-                        : key === 'Limpar'
-                        ? 'bg-slate-800 hover:bg-slate-700 text-rose-400 font-sans text-xs'
-                        : key === 'a' || key === 'A' || key === '#'
-                        ? 'bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-700/50 text-base'
-                        : 'bg-slate-800/80 hover:bg-slate-700 text-slate-200 active:bg-slate-600'
-                    }`}
-                  >
-                    {key}
-                  </button>
-                ))}
+                <p className="text-[11px] text-slate-500 mt-1.5 text-center">
+                  Acesso exclusivo para gestores e administradores de TI.
+                </p>
               </div>
 
               <button
@@ -323,6 +255,7 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="w-full bg-[#161B24] border border-slate-700 focus:border-blue-500 rounded-xl p-2.5 pl-9 pr-9 text-sm text-white focus:outline-none font-mono"
+                    required
                   />
                   <button
                     type="button"
@@ -344,32 +277,6 @@ export const GestorLoginModal: React.FC<GestorLoginModalProps> = ({
               </button>
             </form>
           )}
-
-          {/* Atalho de Acesso Rápido para Gestor */}
-          <div className="pt-2 border-t border-slate-800/80">
-            <button
-              type="button"
-              onClick={handleQuickDemo}
-              className="w-full bg-slate-800/90 hover:bg-emerald-950/40 hover:border-emerald-700/60 border border-slate-700 rounded-xl p-2.5 text-left transition flex items-center justify-between group"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600/30 text-emerald-400 flex items-center justify-center text-xs font-bold border border-emerald-500/30">
-                  GM
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-white block group-hover:text-emerald-300">
-                    Entrar como Gestor Multivale
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">
-                    Acesso completo (Políticas, Apps, Dispositivos e Roteamento)
-                  </span>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
-                1-Clique
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* Rodapé do Modal */}

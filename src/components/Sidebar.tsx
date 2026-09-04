@@ -132,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-[11px] font-bold text-white">Modo Colaborador</span>
               </div>
               <p className="text-[10px] text-slate-400 leading-tight">
-                Simula o celular travado com apps e pastas liberadas da empresa.
+                Interface do celular de campo com apps e pastas liberadas da empresa.
               </p>
             </button>
           </div>
