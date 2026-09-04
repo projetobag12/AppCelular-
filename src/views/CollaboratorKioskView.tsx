@@ -94,6 +94,51 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
   const [sosSent, setSosSent] = useState(false);
   const [sosCategory, setSosCategory] = useState<string>('');
 
+  // Estados de Instalação PWA / Tela Cheia
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState<boolean>(false);
+  const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Detecta se já está rodando em tela cheia (como app instalado)
+    if (typeof window !== 'undefined') {
+      const isStandaloneMode =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone ||
+        document.referrer.includes('android-app://');
+      setIsStandalone(Boolean(isStandaloneMode));
+
+      const handleBeforeInstall = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.addEventListener('appinstalled', () => {
+        setIsStandalone(true);
+        setDeferredPrompt(null);
+      });
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      };
+    }
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsStandalone(true);
+      }
+      setDeferredPrompt(null);
+    } else {
+      // Abre o guia passo a passo ilustrado para o usuário
+      setShowInstallGuide(true);
+    }
+  };
+
   // Relógio do celular
   useEffect(() => {
     const updateTime = () => {
@@ -492,6 +537,52 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
             <span>Área do Gestor</span>
           </button>
         </header>
+
+        {/* ========================================================================= */}
+        {/* BANNER DE INSTALAÇÃO NO CELULAR (PWA & APK) */}
+        {/* ========================================================================= */}
+        {!isStandalone && (
+          <div className="mx-4 mt-3 bg-gradient-to-r from-blue-950/90 via-blue-900/60 to-slate-900/90 border-2 border-blue-500/50 rounded-2xl p-3.5 shadow-lg shadow-blue-950/60 flex flex-col gap-2.5 animate-in fade-in">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-900/50">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-xs flex items-center gap-1.5">
+                    <span>Instalar Aplicativo Multivale</span>
+                    <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0.2 rounded font-mono font-bold">
+                      Sem Barra de Navegador
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-blue-200/90 leading-tight mt-0.5">
+                    Abra direto na tela inicial em tela cheia como um app nativo.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-blue-800/40">
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className="flex-1 min-w-[130px] bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-950/50 transition"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Instalar no Celular</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowInstallGuide(true)}
+                className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 font-semibold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 transition"
+              >
+                <Info className="w-3.5 h-3.5 text-blue-400" />
+                <span>Como Instalar (Passo a Passo)</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* 2. CARD DO COLABORADOR & APRELHO */}
@@ -1689,6 +1780,63 @@ export const CollaboratorKioskView: React.FC<CollaboratorKioskViewProps> = ({
                     Cancelar
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: GUIA PASSO A PASSO COMO INSTALAR NO CHROME */}
+        {/* ========================================================================= */}
+        {showInstallGuide && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#0E131E] border border-blue-500/40 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl relative animate-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-white font-bold text-sm">
+                  <Smartphone className="w-4 h-4 text-blue-400" />
+                  <span>Como Instalar no Celular</span>
+                </div>
+                <button
+                  onClick={() => setShowInstallGuide(false)}
+                  className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-blue-950/40 border border-blue-800/60 rounded-2xl p-3.5 text-xs text-blue-200/90 space-y-3">
+                <p className="font-bold text-white text-xs">
+                  Olhe para o topo da tela do seu celular:
+                </p>
+                <div className="space-y-2.5 text-[11px] text-slate-300">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-center text-[11px] flex-shrink-0 flex items-center justify-center shadow">1</span>
+                    <p>No canto superior direito da barra azul do Chrome (ao lado do número de abas), toque nos <strong>3 pontinhos verticais ( ⋮ )</strong>.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-center text-[11px] flex-shrink-0 flex items-center justify-center shadow">2</span>
+                    <p>No menu que abrir, procure e toque na opção <strong>&quot;Instalar aplicativo&quot;</strong> ou <strong>&quot;Adicionar à tela inicial&quot;</strong>.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-center text-[11px] flex-shrink-0 flex items-center justify-center shadow">3</span>
+                    <p>Confirme clicando em <strong>&quot;Instalar&quot;</strong> ou <strong>&quot;Adicionar&quot;</strong>.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-emerald-950/40 border border-emerald-800/50 rounded-2xl text-[11px] text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                <span>O ícone oficial da Multivale ficará salvo no celular e abrirá direto em tela cheia como um app nativo!</span>
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowInstallGuide(false)}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition shadow-md shadow-blue-950/40"
+                >
+                  Entendi, vou fazer agora!
+                </button>
               </div>
             </div>
           </div>

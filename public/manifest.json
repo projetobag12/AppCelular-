@@ -1,11 +1,12 @@
 {
-  "name": "KioskGuard MDM Corporativo",
-  "short_name": "KioskGuard",
-  "description": "Sistema empresarial para bloqueio e gestão de smartphones corporativos em Modo Quiosque",
-  "start_url": "/",
+  "name": "Multivale Mobile Control",
+  "short_name": "Multivale",
+  "description": "Aplicativo Corporativo de Campo e Gestão Multivale Telecom",
+  "start_url": "/?mode=colaborador",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0B0D11",
-  "theme_color": "#2563eb",
+  "background_color": "#0B0F17",
+  "theme_color": "#1D4ED8",
   "orientation": "portrait-primary",
   "icons": [
     {
